@@ -2,6 +2,7 @@
 <url><loc>https://choxos.github.io/dagittyplus/404.html</loc></url>
 <url><loc>https://choxos.github.io/dagittyplus/BUILDING.html</loc></url>
 <url><loc>https://choxos.github.io/dagittyplus/articles/dagitty4semusers.html</loc></url>
+<url><loc>https://choxos.github.io/dagittyplus/articles/ggdag-interop.html</loc></url>
 <url><loc>https://choxos.github.io/dagittyplus/articles/index.html</loc></url>
 <url><loc>https://choxos.github.io/dagittyplus/authors.html</loc></url>
 <url><loc>https://choxos.github.io/dagittyplus/index.html</loc></url>
@@ -33,6 +34,7 @@
 <url><loc>https://choxos.github.io/dagittyplus/reference/isAcyclic.html</loc></url>
 <url><loc>https://choxos.github.io/dagittyplus/reference/isAdjustmentSet.html</loc></url>
 <url><loc>https://choxos.github.io/dagittyplus/reference/isCollider.html</loc></url>
+<url><loc>https://choxos.github.io/dagittyplus/reference/launch_dagittyplus.html</loc></url>
 <url><loc>https://choxos.github.io/dagittyplus/reference/lavaanToGraph.html</loc></url>
 <url><loc>https://choxos.github.io/dagittyplus/reference/localTests.html</loc></url>
 <url><loc>https://choxos.github.io/dagittyplus/reference/measurementPart.html</loc></url>

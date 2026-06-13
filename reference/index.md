@@ -133,3 +133,8 @@
 
 - [`plot(`*`<dagitty>`*`)`](https://choxos.github.io/dagittyplus/reference/plot.dagitty.md)
   : Plot Graph
+
+## Shiny app
+
+- [`launch_dagittyplus()`](https://choxos.github.io/dagittyplus/reference/launch_dagittyplus.md)
+  : Launch the DAGitty+ Shiny application

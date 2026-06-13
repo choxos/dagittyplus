@@ -70,6 +70,19 @@ library(ggdag)
 ggdag(g)
 ```
 
+## The Shiny app
+
+The package bundles a point-and-click Shiny application. Its “Draw” tab
+embeds the web editor, and its “Analyze” tab runs this package’s own
+functions on a model you type, so it works offline:
+
+``` r
+
+# install.packages(c("shiny", "bslib"))
+library(dagittyplus)
+launch_dagittyplus()
+```
+
 ## Citation
 
 `dagittyplus` builds on the `dagitty` engine. Please cite the original
@@ -224,9 +237,16 @@ GPL-2, the same license as the upstream `dagitty` package.
 - [`plot(`*`<dagitty>`*`)`](https://choxos.github.io/dagittyplus/reference/plot.dagitty.md)
   : Plot Graph
 
+## Shiny app
+
+- [`launch_dagittyplus()`](https://choxos.github.io/dagittyplus/reference/launch_dagittyplus.md)
+  : Launch the DAGitty+ Shiny application
+
 # Articles
 
 ### All vignettes
 
 - [A SEM user's guide to dagitty for
   R](https://choxos.github.io/dagittyplus/articles/dagitty4semusers.md):
+- [Plotting dagittyplus models with
+  ggdag](https://choxos.github.io/dagittyplus/articles/ggdag-interop.md):

@@ -70,6 +70,19 @@ library(ggdag)
 ggdag(g)
 ```
 
+## The Shiny app
+
+The package bundles a point-and-click Shiny application. Its “Draw” tab
+embeds the web editor, and its “Analyze” tab runs this package’s own
+functions on a model you type, so it works offline:
+
+``` r
+
+# install.packages(c("shiny", "bslib"))
+library(dagittyplus)
+launch_dagittyplus()
+```
+
 ## Citation
 
 `dagittyplus` builds on the `dagitty` engine. Please cite the original

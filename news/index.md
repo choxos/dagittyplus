@@ -19,3 +19,11 @@ modernizes its tooling, without changing any analysis behavior.
   bundled Shiny application are all driven by the same JavaScript
   library that powers the R package, so results stay consistent across
   every interface.
+- Added
+  [`launch_dagittyplus()`](https://choxos.github.io/dagittyplus/reference/launch_dagittyplus.md),
+  which starts a bundled Shiny app that embeds the web editor and runs
+  adjustment-set, implication, and instrument analyses from
+  18. 
+- Added a vignette, “Plotting dagittyplus models with ggdag”,
+  documenting how the preserved `dagitty` S3 class lets the `ggdag`
+  package plot dagittyplus models directly.
