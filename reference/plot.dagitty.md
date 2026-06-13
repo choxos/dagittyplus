@@ -1,0 +1,65 @@
+# Plot Graph
+
+A simple plot method to quickly visualize a graph. This is intended
+mainly for simple visualization purposes and not as a full-fledged graph
+drawing function.
+
+## Usage
+
+``` r
+# S3 method for class 'dagitty'
+plot(
+  x,
+  abbreviate.names = FALSE,
+  show.coefficients = FALSE,
+  adjust.coefficients = NA,
+  node.names = NULL,
+  ...
+)
+```
+
+## Arguments
+
+- x:
+
+  the input graph, a DAG, MAG, or PDAG.
+
+- abbreviate.names:
+
+  logical. Whether to abbreviate variable names.
+
+- show.coefficients:
+
+  logical. Whether to plot coefficients defined in the graph syntax on
+  the edges.
+
+- adjust.coefficients:
+
+  numerical. Adjustment for coefficient labels; the distance between the
+  edge labels and the midpoint of the edge can be controlled using this
+  paramer. Can also be a vector of 2 numbers for separate horizontal and
+  vertical adjustment. NA means no adjustment (default).
+
+- node.names:
+
+  If not NULL, a named vector or expression list to rename the nodes.
+
+- ...:
+
+  not used.
+
+## Details
+
+If `node.names` is not `NULL`, it should be a named vector of characters
+or expressions to use to rename (some of) the nodes, e.g. node `"X"`
+could be renamed using `expression(X = alpha^2)`.
+
+## Examples
+
+``` r
+
+# Showing usage of "node.names"
+plot(dagitty('{x[pos="0,0"]}->{y[pos="1,0"]}'), node.names=expression(x = alpha^2, y=gamma^2))
+
+
+```
