@@ -1,20 +1,38 @@
-
-
-citHeader("To cite dagitty in publications, please use:")
+citHeader(
+  "dagittyplus is an enhanced fork of the dagitty package. To cite it in",
+  "publications, please cite the original dagitty papers:"
+)
 
 bibentry(
 	bibtype = "Article",
 	title = "Robust causal inference using directed acyclic graphs: the R package 'dagitty'",
 	journal = "International Journal of Epidemiology",
- 	author = c("Johannes Textor",
-		"Benito van der Zander",
-		"Mark S Gilthorpe",
-		"Maciej Li\\'{s}kiewicz",
-		"George TH Ellison" ),
+	author = c(
+		person("Johannes", "Textor"),
+		person("Benito", "van der Zander"),
+		person("Mark S", "Gilthorpe"),
+		person("Maciej", "Li\\'{s}kiewicz"),
+		person("George TH", "Ellison")
+	),
 	volume = "45",
 	number = "6",
 	pages = "1887--1894",
 	year = "2016",
-	doi = "10.1093/ije/dyw341",
+	doi = "10.1093/ije/dyw341"
 )
 
+bibentry(
+	bibtype = "Article",
+	title = "Testing Graphical Causal Models Using the R Package 'dagitty'",
+	journal = "Current Protocols",
+	author = c(
+		person("Ankur", "Ankan"),
+		person("Inge M N", "Wortel"),
+		person("Johannes", "Textor")
+	),
+	volume = "1",
+	number = "2",
+	pages = "e45",
+	year = "2021",
+	doi = "10.1002/cpz1.45"
+)

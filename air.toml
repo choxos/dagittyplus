@@ -1,0 +1,3 @@
+# Air R formatter configuration.
+# https://posit-dev.github.io/air/configuration.html
+line-width = 80

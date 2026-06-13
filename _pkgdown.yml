@@ -1,0 +1,105 @@
+url: https://choxos.github.io/dagittyplus/
+
+template:
+  bootstrap: 5
+
+authors:
+  Ahmad Sofi-Mahmudi:
+    href: https://github.com/choxos
+
+navbar:
+  structure:
+    left:  [intro, reference, articles, news]
+    right: [webapp, github]
+  components:
+    webapp:
+      text: Web app
+      href: https://choxos.github.io/dagittyplus/app/
+
+reference:
+- title: Create and load models
+  contents:
+  - dagitty
+  - as.dagitty
+  - is.dagitty
+  - getExample
+  - downloadGraph
+  - randomDAG
+  - graphLayout
+  - canonicalize
+  - completeDAG
+
+- title: Variables and their roles
+  contents:
+  - exposures
+  - outcomes
+  - latents
+  - adjustedNodes
+  - setVariableStatus
+  - coordinates
+  - names.dagitty
+
+- title: Graph relations
+  contents:
+  - parents
+  - children
+  - ancestors
+  - descendants
+  - neighbours
+  - spouses
+  - adjacentNodes
+  - markovBlanket
+  - exogenousVariables
+
+- title: Edges, paths, and structure
+  contents:
+  - edges
+  - paths
+  - graphType
+  - isAcyclic
+  - findCycle
+  - isCollider
+  - topologicalOrdering
+
+- title: Causal effect identification
+  contents:
+  - adjustmentSets
+  - isAdjustmentSet
+  - backDoorGraph
+  - instrumentalVariables
+
+- title: d-separation and testable implications
+  contents:
+  - dconnected
+  - dseparated
+  - impliedConditionalIndependencies
+  - ciTest
+  - localTests
+  - plotLocalTestResults
+  - vanishingTetrads
+  - impliedCovarianceMatrix
+
+- title: Equivalence and graph transformations
+  contents:
+  - equivalenceClass
+  - equivalentDAGs
+  - orientPDAG
+  - moralize
+  - ancestorGraph
+  - toMAG
+  - measurementPart
+  - structuralPart
+
+- title: Data simulation
+  contents:
+  - simulateSEM
+  - simulateLogistic
+
+- title: Conversion and interoperability
+  contents:
+  - convert
+  - lavaanToGraph
+
+- title: Plotting
+  contents:
+  - plot.dagitty

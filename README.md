@@ -1,49 +1,99 @@
-# dagitty
 
-This is a collection of algorithms, a GUI frontend and an R package for analyzing
-graphical causal models (DAGs).
+<!-- README.md is generated from README.Rmd. Please edit that file -->
 
-The main components of the repository are:
+# dagittyplus
 
- * [jslib](jslib): a JavaScript library implementing many DAG algorithms. This library underpins
- both the web interface and the R package, but could also be used independently, like in node.js.
- * [gui](gui): HTML interface for a GUI that exposes most of the functions in the JavaScript library.
- * [r](r): R package that exposes most of the functions in the JavaScript library.
- * [website](website): The current content of [dagitty.net](https://dagitty.net), including a version of the GUI (which may be older than the one in [gui](gui). 
- * [doc](doc): LaTeX source of the dagitty PDF documentation.
+<!-- badges: start -->
 
-## Running the web interface locally
+[![R-CMD-check](https://github.com/choxos/dagittyplus/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/choxos/dagittyplus/actions/workflows/R-CMD-check.yaml)
+[![pkgdown](https://github.com/choxos/dagittyplus/actions/workflows/pkgdown.yaml/badge.svg)](https://github.com/choxos/dagittyplus/actions/workflows/pkgdown.yaml)
+[![Lifecycle:
+experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+[![License: GPL
+v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.html)
+<!-- badges: end -->
 
-Clone the repository and open the file `gui/dags.html` in your web browser.
-Currently most functionality should work locally, but you will need an internet
-connection if you want to load or save DAG models on [dagitty.net](https://dagitty.net).
+`dagittyplus` is an enhanced fork of the
+[`dagitty`](https://github.com/jtextor/dagitty) R package for the
+graphical analysis of structural causal models, also known as directed
+acyclic graphs (DAGs). It computes covariate adjustment sets for
+estimating causal effects, enumerates instrumental variables, derives
+testable implications (d-separation and vanishing tetrads), generates
+equivalent models, and simulates data from a model.
 
-## Running the R package
+Every exported function and the `dagitty` S3 class are kept identical to
+the upstream package, so existing `dagitty` code and the
+[`ggdag`](https://r-causal.github.io/ggdag/) package work unchanged.
 
-The R package can be installed from CRAN, but this version is not updated very
-frequently. If you want to install the most recent version of the dagitty R package,
-you can:
+## Try it in your browser
 
+A redesigned, polished web editor runs entirely in the browser, with no
+R installation required:
+
+**<https://choxos.github.io/dagittyplus/app/>**
+
+## Installation
+
+Install the development version from GitHub:
+
+``` r
+# install.packages("remotes")
+remotes::install_github("choxos/dagittyplus")
 ```
-install.packages("remotes") # unless you have it already
-remotes::install_github("jtextor/dagitty/r")
+
+The package depends on [V8](https://cran.r-project.org/package=V8),
+which runs the bundled JavaScript analysis engine.
+
+## Quick start
+
+``` r
+library(dagittyplus)
+
+g <- dagitty("dag {
+  x [exposure]
+  y [outcome]
+  z -> x
+  z -> y
+  x -> y
+}")
+
+# Which variables must we adjust for to estimate the total effect of x on y?
+adjustmentSets(g, exposure = "x", outcome = "y")
+#> { z }
+
+# Testable implications of the model
+impliedConditionalIndependencies(g)
+
+# Is the model acyclic?
+isAcyclic(g)
+#> [1] TRUE
 ```
 
-If you encounter any problems installing the R package,
-it is probably not due to dagitty itself, but due to the
-package "V8" that it depends on. 
-I may try to remove this dependency in a future version.
+## Plotting with ggdag
 
-# More information
+Because `dagittyplus` returns standard `dagitty` objects, the
+[`ggdag`](https://r-causal.github.io/ggdag/) package can tidy and plot
+them with `ggplot2`:
 
-You can get more information on dagitty at [dagitty.net](https://dagitty.net) and
- [dagitty.net/learn](https://dagitty.net/learn). The R package is
-documented through the standard R help interface.
-There are also a few papers available:
+``` r
+library(ggdag)
+ggdag(g)
+```
 
-1. Textor, J., van der Zander, B., Gilthorpe, M. S., Liśkiewicz, M., & Ellison, G. T. H. (2017). Robust causal inference using directed acyclic graphs: the R package ‘dagitty.’ In International Journal of Epidemiology (p. dyw341). Oxford University Press (OUP). https://doi.org/10.1093/ije/dyw341
+## Citation
 
-2. Ankan, A., Wortel, I. M. N., & Textor, J. (2021). Testing Graphical Causal Models Using the R Package “dagitty.” In Current Protocols (Vol. 1, Issue 2). Wiley. https://doi.org/10.1002/cpz1.45
+`dagittyplus` builds on the `dagitty` engine. Please cite the original
+papers:
 
+1.  Textor, J., van der Zander, B., Gilthorpe, M. S., Liśkiewicz, M., &
+    Ellison, G. T. H. (2016). Robust causal inference using directed
+    acyclic graphs: the R package ‘dagitty’. *International Journal of
+    Epidemiology*, 45(6), 1887–1894.
+    <https://doi.org/10.1093/ije/dyw341>
+2.  Ankan, A., Wortel, I. M. N., & Textor, J. (2021). Testing Graphical
+    Causal Models Using the R Package ‘dagitty’. *Current Protocols*,
+    1(2), e45. <https://doi.org/10.1002/cpz1.45>
 
- 
+## License
+
+GPL-2, the same license as the upstream `dagitty` package.
