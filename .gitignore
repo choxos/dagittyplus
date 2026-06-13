@@ -1,0 +1,16 @@
+node_modules
+dist
+dist-ssr
+*.tsbuildinfo
+*.local
+.DS_Store
+
+# Reference material and engine source carried over from master; not part of the web app.
+ClaudeDesign
+jslib
+refs
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea

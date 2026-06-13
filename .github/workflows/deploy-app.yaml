@@ -1,0 +1,49 @@
+# Build the DAGitty+ browser app and publish it into the gh-pages /app subtree
+# (https://choxos.github.io/dagittyplus/app/). The pkgdown docs site is published
+# at the gh-pages root by the pkgdown workflow on master; both workflows share the
+# gh-pages-deploy concurrency group and this one is scoped to target-folder: app,
+# so the two never clobber each other.
+on:
+  push:
+    branches: [webapp]
+  pull_request:
+    branches: [webapp]
+  workflow_dispatch:
+
+name: deploy-app.yaml
+
+permissions: read-all
+
+concurrency:
+  group: gh-pages-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-app:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+      - name: Disable Jekyll
+        run: touch dist/.nojekyll
+
+      - name: Deploy to GitHub pages /app 🚀
+        if: github.event_name != 'pull_request'
+        uses: JamesIves/github-pages-deploy-action@v4.5.0
+        with:
+          branch: gh-pages
+          folder: dist
+          target-folder: app
+          clean: true
