@@ -80,9 +80,9 @@
 	if( !exists("ct",.dagitty.cache) ){
 		requireNamespace("V8",quietly=TRUE)
 		ct <- V8::new_context()
-		ct$source(system.file("js/dagitty-alg.js",package="dagitty"))
-		ct$source(system.file("js/RUtil.js",package="dagitty"))
-		ct$source(system.file("js/example-dags.js",package="dagitty"))
+		ct$source(system.file("js/dagitty-alg.js",package="dagittyplus"))
+		ct$source(system.file("js/RUtil.js",package="dagittyplus"))
+		ct$source(system.file("js/example-dags.js",package="dagittyplus"))
 
 		# Disabling the shorter syntax until ggdag can deal with it
 		ct$eval("DAGitty.GraphSerializer.SHORTEN_SYNTAX = false")
