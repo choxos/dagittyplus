@@ -17,6 +17,9 @@ its tooling, without changing any analysis behavior.
 * Added `launch_dagittyplus()`, which starts a bundled Shiny app that embeds the
   web editor and runs adjustment-set, implication, and instrument analyses from
   R.
+* Added a vignette, "Plotting dagittyplus models with ggdag", documenting how
+  the preserved `dagitty` S3 class lets the `ggdag` package plot dagittyplus
+  models directly.
 
 # dagitty 0.3-2
 

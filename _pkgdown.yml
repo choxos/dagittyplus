@@ -103,3 +103,7 @@ reference:
 - title: Plotting
   contents:
   - plot.dagitty
+
+- title: Shiny app
+  contents:
+  - launch_dagittyplus
