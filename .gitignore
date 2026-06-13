@@ -6,6 +6,7 @@
 refs/
 docs/
 node_modules/
+dist/
 *.tar.gz
 *.Rcheck/
 /README.html

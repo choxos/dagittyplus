@@ -1,0 +1,57 @@
+---
+title: "Plotting dagittyplus models with ggdag"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Plotting dagittyplus models with ggdag}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+`dagittyplus` keeps the exported function names and the `dagitty` S3 class of the
+upstream `dagitty` package unchanged. As a result, models you build with
+`dagittyplus` are ordinary `dagitty` objects, and the
+[`ggdag`](https://r-causal.github.io/ggdag/) package (Barrett), which is built on
+top of `dagitty`, can tidy and plot them with `ggplot2` without any conversion.
+
+Build a model the usual way:
+
+```{r}
+library(dagittyplus)
+
+g <- dagitty("dag {
+  x [exposure]
+  y [outcome]
+  z -> x
+  z -> y
+  x -> y
+}")
+
+class(g)
+```
+
+The object has class `"dagitty"`, so every `ggdag` function accepts it directly.
+The examples below are not run here (so that this vignette does not require
+`ggdag` to be installed), but they work as written once you
+`install.packages("ggdag")`:
+
+```{r, eval = FALSE}
+library(ggdag)
+
+# Tidy the model into a tibble of nodes and edges.
+tidy_dagitty(g)
+
+# Plot it with ggplot2.
+ggdag(g) +
+  theme_dag()
+
+# Highlight a minimal sufficient adjustment set for the effect of x on y.
+ggdag_adjustment_set(g)
+```
+
+Because both packages share the same `dagitty` representation, you can move
+freely between `dagittyplus` for analysis and `ggdag` for publication-quality
+figures.
