@@ -45,7 +45,9 @@ Suggests:
     rmarkdown,
     lavaan,
     CCP,
-    fastDummies
+    fastDummies,
+    shiny,
+    bslib
 RoxygenNote: 7.2.1
 Config/testthat/edition: 3
 Config/Needs/website: pkgdown
