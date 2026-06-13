@@ -14,6 +14,9 @@ its tooling, without changing any analysis behavior.
 * The causal-analysis engine, the redesigned web interface, and a bundled Shiny
   application are all driven by the same JavaScript library that powers the R
   package, so results stay consistent across every interface.
+* Added `launch_dagittyplus()`, which starts a bundled Shiny app that embeds the
+  web editor and runs adjustment-set, implication, and instrument analyses from
+  R.
 
 # dagitty 0.3-2
 
