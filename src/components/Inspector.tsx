@@ -109,7 +109,7 @@ function InspectTab({ analysis, selected, onToggleRole, onRename, onDelete }: In
           <div className="px-[15px] py-3.5 flex items-center gap-3 bg-bg border-b border-line">
             <RoleBadge node={selected} />
             <div className="min-w-0">
-              <div className="font-sans font-semibold text-[15px] text-text whitespace-nowrap">
+              <div className="font-sans font-semibold text-[15px] text-text truncate">
                 Variable {selected.id}
               </div>
               <div className="text-[12px] text-dim">{roleSummary(selected)}</div>
@@ -261,7 +261,8 @@ function RoleBadge({ node }: { node: DagNode }) {
   const borderStyle = node.roles.latent ? "dashed" : "solid";
   return (
     <span
-      className="flex-none w-[42px] h-[42px] flex items-center justify-center font-sans font-bold text-[16px]"
+      title={node.id}
+      className="flex-none w-[42px] h-[42px] flex items-center justify-center font-sans font-bold text-[16px] overflow-hidden leading-none"
       style={{
         background: bg,
         color,
@@ -271,7 +272,7 @@ function RoleBadge({ node }: { node: DagNode }) {
         borderRadius: isAdj ? "9px" : "50%",
       }}
     >
-      {node.id}
+      {node.id.length > 3 ? node.id.slice(0, 2) : node.id}
     </span>
   );
 }
