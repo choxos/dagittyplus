@@ -13,6 +13,8 @@ interface MenuItem {
 interface HeaderProps {
   theme: "light" | "dark";
   onToggleTheme: () => void;
+  /** Provided only when embedded (Shiny iframe): pushes the model to R. */
+  onSendToR?: () => void;
   projectName: string;
   onRenameProject: (name: string) => void;
   onNew: () => void;
@@ -165,6 +167,7 @@ function ProjectTitle({ name, onChange }: { name: string; onChange: (n: string) 
 export default function Header({
   theme,
   onToggleTheme,
+  onSendToR,
   projectName,
   onRenameProject,
   onNew,
@@ -228,6 +231,30 @@ export default function Header({
       </nav>
 
       <div className="flex-1" />
+
+      {onSendToR && (
+        <button
+          onClick={onSendToR}
+          title="Send the model to the Analyze tab"
+          className="flex items-center gap-[7px] h-[38px] px-3 sm:px-4 rounded-[10px] border border-line bg-bg text-text text-[13px] font-medium hover:border-accent cursor-pointer transition-colors"
+        >
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M22 2 11 13" />
+            <path d="M22 2 15 22l-4-9-9-4 20-7Z" />
+          </svg>
+          <span className="hidden sm:inline">Send to R</span>
+        </button>
+      )}
 
       <button
         onClick={onToggleTheme}
