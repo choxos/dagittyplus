@@ -73,19 +73,31 @@ function resolveBackground(background: ExportBackground): string | null {
   return background;
 }
 
-function buildSVGMarkup(svg: SVGSVGElement, background: ExportBackground): { markup: string } & Box {
+function buildSVGMarkup(
+  svg: SVGSVGElement,
+  background: ExportBackground,
+  scale = 1,
+): { markup: string; width: number; height: number } {
   const box = contentBox(svg);
   const clone = svg.cloneNode(true) as SVGSVGElement;
 
-  // Reset the zoom transform so export is always the full, unzoomed diagram.
+  // Reset the on-screen scale; export size is controlled by `scale` below.
   clone.querySelectorAll("g").forEach((g) => {
     const style = g.getAttribute("style");
     if (style && style.includes("scale(")) g.removeAttribute("style");
   });
+  // Drop the canvas chrome (the transparent hit target and the bounded-area
+  // frame); they are editor affordances, not part of the diagram, and would
+  // otherwise show up as a border in the exported file.
+  clone.querySelectorAll(":scope > rect").forEach((r) => r.remove());
 
+  // The viewBox stays in content coordinates; the intrinsic width/height carry
+  // the chosen diagram size, so the export reflects the on-screen size control.
+  const width = box.width * scale;
+  const height = box.height * scale;
   clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-  clone.setAttribute("width", String(box.width));
-  clone.setAttribute("height", String(box.height));
+  clone.setAttribute("width", String(width));
+  clone.setAttribute("height", String(height));
   clone.setAttribute("viewBox", `${box.x} ${box.y} ${box.width} ${box.height}`);
 
   let serialized = new XMLSerializer().serializeToString(clone);
@@ -96,7 +108,7 @@ function buildSVGMarkup(svg: SVGSVGElement, background: ExportBackground): { mar
     serialized = serialized.replace(/(<svg[^>]*>)/, `$1${bg}`);
   }
 
-  return { markup: resolveVars(serialized), ...box };
+  return { markup: resolveVars(serialized), width, height };
 }
 
 function triggerDownload(url: string, filename: string): void {
@@ -154,16 +166,20 @@ function withDpiMetadata(png: Uint8Array, dpi: number): Uint8Array {
 
 export interface SvgExportOptions {
   background?: ExportBackground;
+  /** Diagram size multiplier from the on-screen size control. Defaults to 1. */
+  scale?: number;
 }
 
 export interface PngExportOptions {
   background?: ExportBackground;
   /** Raster resolution in dots per inch. Defaults to 300. */
   dpi?: number;
+  /** Diagram size multiplier from the on-screen size control. Defaults to 1. */
+  scale?: number;
 }
 
 export function exportSVG(svg: SVGSVGElement, filename = "dag.svg", options: SvgExportOptions = {}): void {
-  const { markup } = buildSVGMarkup(svg, options.background ?? "theme");
+  const { markup } = buildSVGMarkup(svg, options.background ?? "theme", options.scale ?? 1);
   const blob = new Blob([markup], { type: "image/svg+xml;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   triggerDownload(url, filename);
@@ -176,22 +192,26 @@ export function exportPNG(
   options: PngExportOptions = {},
 ): Promise<void> {
   const dpi = options.dpi ?? DEFAULT_DPI;
-  const scale = dpi / CSS_DPI;
-  const { markup, width, height } = buildSVGMarkup(svg, options.background ?? "theme");
+  const raster = dpi / CSS_DPI;
+  const { markup, width, height } = buildSVGMarkup(
+    svg,
+    options.background ?? "theme",
+    options.scale ?? 1,
+  );
   const src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(markup);
 
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement("canvas");
-      canvas.width = Math.round(width * scale);
-      canvas.height = Math.round(height * scale);
+      canvas.width = Math.round(width * raster);
+      canvas.height = Math.round(height * raster);
       const ctx = canvas.getContext("2d");
       if (!ctx) {
         reject(new Error("Could not get a 2D drawing context."));
         return;
       }
-      ctx.scale(scale, scale);
+      ctx.scale(raster, raster);
       ctx.drawImage(img, 0, 0, width, height);
       canvas.toBlob((blob) => {
         if (!blob) {
