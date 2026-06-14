@@ -52,6 +52,7 @@
 <code><a href="../reference/downloadGraph.html">downloadGraph()</a></code> now uses HTTPS, validates and URL-encodes the graph id, and fails clearly on an invalid id, an empty response, or a timeout.</li>
 <li>The bundled Shiny app serves the web editor locally (offline, version locked to the installed package) instead of embedding the deployed site, and points to copying the model code into the Analyze tab.</li>
 <li>Added cross-surface CI: an engine-parity check (the vendored DAGitty engine is byte-identical across the R package, the bundled Shiny editor, and the web app) and the JavaScript engine QUnit suite.</li>
+<li>The package prints a brief startup message on load, with the version and pointers to <code><a href="../reference/dagitty.html">dagitty()</a></code>, <code><a href="../reference/launch_dagittyplus.html">launch_dagittyplus()</a></code>, and the web editor.</li>
 </ul></div>
   </main></div>
 

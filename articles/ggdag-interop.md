@@ -12,6 +12,9 @@ Build a model the usual way:
 ``` r
 
 library(dagittyplus)
+#> dagittyplus 0.4.0: draw and analyze causal diagrams (DAGs).
+#> Build a model with dagitty(); find adjustment sets with adjustmentSets(); launch the editor with launch_dagittyplus().
+#> Web editor: https://choxos.github.io/dagittyplus/app/ | Docs: https://choxos.github.io/dagittyplus/
 
 g <- dagitty("dag {
   x [exposure]

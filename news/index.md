@@ -40,3 +40,8 @@ modernizes its tooling, without changing any analysis behavior.
 - Added cross-surface CI: an engine-parity check (the vendored DAGitty
   engine is byte-identical across the R package, the bundled Shiny
   editor, and the web app) and the JavaScript engine QUnit suite.
+- The package prints a brief startup message on load, with the version
+  and pointers to
+  [`dagitty()`](https://choxos.github.io/dagittyplus/reference/dagitty.md),
+  [`launch_dagittyplus()`](https://choxos.github.io/dagittyplus/reference/launch_dagittyplus.md),
+  and the web editor.
