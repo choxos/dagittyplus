@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { analyze } from "./lib/engine";
 import {
+  BASE_FONT_PX,
   CANVAS,
   exampleModel,
   parse,
@@ -335,8 +336,18 @@ export default function App() {
 
   /* -------------------------------------------------------------- zoom etc */
 
-  const zoomIn = useCallback(() => setZoom((z) => Math.min(1.8, +(z + 0.15).toFixed(2))), []);
-  const zoomOut = useCallback(() => setZoom((z) => Math.max(0.5, +(z - 0.15).toFixed(2))), []);
+  // The size control steps in whole-pixel font sizes; the scale factor is just
+  // fontSize / BASE_FONT_PX, kept in [FONT_MIN, FONT_MAX] px.
+  const FONT_MIN = 9;
+  const FONT_MAX = 30;
+  const zoomIn = useCallback(
+    () => setZoom((z) => Math.min(FONT_MAX, Math.round(BASE_FONT_PX * z) + 1) / BASE_FONT_PX),
+    [],
+  );
+  const zoomOut = useCallback(
+    () => setZoom((z) => Math.max(FONT_MIN, Math.round(BASE_FONT_PX * z) - 1) / BASE_FONT_PX),
+    [],
+  );
   const zoomReset = useCallback(() => setZoom(1), []);
 
   const startEmptyNode = useCallback(() => {
