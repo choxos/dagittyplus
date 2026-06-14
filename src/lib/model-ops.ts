@@ -23,18 +23,18 @@ export function nextNodeId(model: DagModel): string {
   return `v${i}`;
 }
 
+// Coordinates arrive already clamped to the live canvas by the Canvas component,
+// which is the only place that knows the current (responsive) drawing bounds.
 export function addNode(model: DagModel, x: number, y: number, id?: string): DagModel {
-  const p = clampPoint(x, y);
   const newId = id ?? nextNodeId(model);
   if (model.nodes.some((n) => n.id === newId)) return model;
-  const node: DagNode = { id: newId, x: p.x, y: p.y, roles: {} };
+  const node: DagNode = { id: newId, x, y, roles: {} };
   return { nodes: [...model.nodes, node], edges: model.edges };
 }
 
 export function moveNode(model: DagModel, id: string, x: number, y: number): DagModel {
-  const p = clampPoint(x, y);
   return {
-    nodes: model.nodes.map((n) => (n.id === id ? { ...n, x: p.x, y: p.y } : n)),
+    nodes: model.nodes.map((n) => (n.id === id ? { ...n, x, y } : n)),
     edges: model.edges,
   };
 }

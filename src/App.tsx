@@ -41,22 +41,6 @@ function initialTheme(): Theme {
   return "light";
 }
 
-/** Track a CSS media query; used to drive the mobile/tablet inspector drawer. */
-function useMediaQuery(query: string): boolean {
-  const [matches, setMatches] = useState(
-    () => typeof window !== "undefined" && !!window.matchMedia && window.matchMedia(query).matches,
-  );
-  useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) return;
-    const mql = window.matchMedia(query);
-    const onChange = () => setMatches(mql.matches);
-    onChange();
-    mql.addEventListener("change", onChange);
-    return () => mql.removeEventListener("change", onChange);
-  }, [query]);
-  return matches;
-}
-
 export default function App() {
   const [model, setModel] = useState<DagModel>(() => {
     try {
@@ -75,7 +59,8 @@ export default function App() {
 
   // The analysis panel is a static column on desktop and a slide-over drawer
   // below the lg breakpoint, where a fixed-width sidebar would crowd the canvas.
-  const isDesktop = useMediaQuery("(min-width: 1024px)");
+  // The drawer only opens when the user taps its tab, so it never covers the
+  // diagram while editing nodes.
   const [inspectorOpen, setInspectorOpen] = useState(false);
 
   // Code tab draft, kept in sync with the model unless the user is editing it.
@@ -126,27 +111,16 @@ export default function App() {
   /* -------------------------------------------------------------- selection */
 
   // Selecting a node (or clearing) drops any edge selection.
-  const selectNode = useCallback(
-    (id: string | null) => {
-      setSelectedId(id);
-      setSelectedEdge(null);
-      // On a phone/tablet, reveal the drawer so the selection's details show.
-      if (id && !isDesktop) setInspectorOpen(true);
-    },
-    [isDesktop],
-  );
+  const selectNode = useCallback((id: string | null) => {
+    setSelectedId(id);
+    setSelectedEdge(null);
+  }, []);
 
   // Selecting an edge drops the node selection so only one toolbar shows.
-  const selectEdge = useCallback(
-    (edge: SelectedEdge | null) => {
-      setSelectedEdge(edge);
-      if (edge) {
-        setSelectedId(null);
-        if (!isDesktop) setInspectorOpen(true);
-      }
-    },
-    [isDesktop],
-  );
+  const selectEdge = useCallback((edge: SelectedEdge | null) => {
+    setSelectedEdge(edge);
+    if (edge) setSelectedId(null);
+  }, []);
 
   /* ----------------------------------------------------------- model edits */
 

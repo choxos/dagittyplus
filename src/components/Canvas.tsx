@@ -207,20 +207,57 @@ export default function Canvas(props: CanvasProps) {
   // Bumped on scroll/resize so floating overlays recompute their screen positions.
   const [, forceTick] = useState(0);
 
+  // The drawing surface fills its container at any aspect ratio. The logical
+  // viewBox tracks the container's shape but never shrinks below the base
+  // 760x480, so existing layouts always fit and the dotted area uses the full
+  // height instead of letterboxing into a centered band.
+  const [view, setView] = useState({ width: CANVAS.width, height: CANVAS.height });
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg || typeof ResizeObserver === "undefined") return;
+    const recompute = () => {
+      const rect = svg.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const ratio = rect.width / rect.height;
+      const base = CANVAS.width / CANVAS.height;
+      const next =
+        ratio >= base
+          ? { width: Math.round(CANVAS.height * ratio), height: CANVAS.height }
+          : { width: CANVAS.width, height: Math.round(CANVAS.width / ratio) };
+      setView((v) => (v.width === next.width && v.height === next.height ? v : next));
+    };
+    recompute();
+    const ro = new ResizeObserver(recompute);
+    ro.observe(svg);
+    return () => ro.disconnect();
+  }, [svgRef]);
+
+  // Keep a node fully inside the live drawing area (Canvas owns clamping now).
+  const clampToView = useCallback(
+    (x: number, y: number) => {
+      const m = 34;
+      return {
+        x: Math.max(m, Math.min(view.width - m, x)),
+        y: Math.max(m, Math.min(view.height - m, y)),
+      };
+    },
+    [view],
+  );
+
   /** Geometry shared by toScreen/toViewBox: maps the canvas into the SVG box. */
   const frame = useCallback(() => {
     const svg = svgRef.current;
     const rect = svg?.getBoundingClientRect();
-    const scale = rect ? Math.min(rect.width / CANVAS.width, rect.height / CANVAS.height) || 1 : 1;
-    const drawW = CANVAS.width * scale;
-    const drawH = CANVAS.height * scale;
+    const scale = rect ? Math.min(rect.width / view.width, rect.height / view.height) || 1 : 1;
+    const drawW = view.width * scale;
+    const drawH = view.height * scale;
     return {
       rect,
       scale,
       offX: rect ? (rect.width - drawW) / 2 : 0,
       offY: rect ? (rect.height - drawH) / 2 : 0,
     };
-  }, [svgRef]);
+  }, [svgRef, view]);
 
   /** Convert a client point to viewBox coords, undoing meet-fit and zoom. */
   const toViewBox = useCallback(
@@ -229,26 +266,26 @@ export default function Canvas(props: CanvasProps) {
       if (!rect) return { x: 0, y: 0 };
       let vx = (clientX - rect.left - offX) / scale;
       let vy = (clientY - rect.top - offY) / scale;
-      const cx = CANVAS.width / 2;
-      const cy = CANVAS.height / 2;
+      const cx = view.width / 2;
+      const cy = view.height / 2;
       vx = cx + (vx - cx) / zoom;
       vy = cy + (vy - cy) / zoom;
       return { x: vx, y: vy };
     },
-    [frame, zoom],
+    [frame, zoom, view],
   );
 
   /** Inverse of toViewBox: viewBox coords -> pixels relative to the SVG box top-left. */
   const toScreen = useCallback(
     (vx: number, vy: number): { x: number; y: number } => {
       const { scale, offX, offY } = frame();
-      const cx = CANVAS.width / 2;
-      const cy = CANVAS.height / 2;
+      const cx = view.width / 2;
+      const cy = view.height / 2;
       const zx = cx + (vx - cx) * zoom;
       const zy = cy + (vy - cy) * zoom;
       return { x: offX + zx * scale, y: offY + zy * scale };
     },
-    [frame, zoom],
+    [frame, zoom, view],
   );
 
   /** Screen-space radius of a node (for clearing the toolbar above it). */
@@ -341,7 +378,8 @@ export default function Canvas(props: CanvasProps) {
     if (dragRef.current) {
       const p = toViewBox(e.clientX, e.clientY);
       dragRef.current.moved = true;
-      onMoveNode(dragRef.current.id, p.x - dragRef.current.dx, p.y - dragRef.current.dy);
+      const c = clampToView(p.x - dragRef.current.dx, p.y - dragRef.current.dy);
+      onMoveNode(dragRef.current.id, c.x, c.y);
       return;
     }
     if (pendingEdge !== null) {
@@ -359,7 +397,8 @@ export default function Canvas(props: CanvasProps) {
     setMenu(null);
     if (tool === "node") {
       const p = toViewBox(e.clientX, e.clientY);
-      onAddNodeAt(p.x, p.y);
+      const c = clampToView(p.x, p.y);
+      onAddNodeAt(c.x, c.y);
       return;
     }
     if (pendingEdge !== null) {
@@ -375,7 +414,8 @@ export default function Canvas(props: CanvasProps) {
     // Double-click empty space adds a variable there immediately.
     if (pendingEdge !== null) return;
     const p = toViewBox(e.clientX, e.clientY);
-    onAddNodeAt(p.x, p.y);
+    const c = clampToView(p.x, p.y);
+    onAddNodeAt(c.x, c.y);
   };
 
   const openMenu = (e: React.MouseEvent, target: MenuTarget) => {
@@ -425,7 +465,13 @@ export default function Canvas(props: CanvasProps) {
     if (!menu) return [];
     if (menu.kind === "empty") {
       return [
-        { label: "Add variable here", onClick: () => onAddNodeAt(menu.vx, menu.vy) },
+        {
+          label: "Add variable here",
+          onClick: () => {
+            const c = clampToView(menu.vx, menu.vy);
+            onAddNodeAt(c.x, c.y);
+          },
+        },
         { label: "Auto-layout", onClick: onAutoLayout },
         { label: "Fit to view", onClick: onFit },
         { divider: true },
@@ -532,7 +578,7 @@ export default function Canvas(props: CanvasProps) {
 
       <svg
         ref={svgRef}
-        viewBox={`0 0 ${CANVAS.width} ${CANVAS.height}`}
+        viewBox={`0 0 ${view.width} ${view.height}`}
         preserveAspectRatio="xMidYMid meet"
         className="absolute inset-0 w-full h-full"
         style={{ cursor: cursorStyle, touchAction: "none" }}
@@ -549,26 +595,26 @@ export default function Canvas(props: CanvasProps) {
         <rect
           x={0}
           y={0}
-          width={CANVAS.width}
-          height={CANVAS.height}
+          width={view.width}
+          height={view.height}
           fill="transparent"
           onPointerDown={onCanvasDown}
           onDoubleClick={onCanvasDoubleClick}
           onContextMenu={onCanvasContextMenu}
         />
-        {/* Visible frame marking the bounded region nodes are clamped within. */}
+        {/* Subtle frame around the bounded drawing area nodes are clamped within. */}
         <rect
-          x={1}
-          y={1}
-          width={CANVAS.width - 2}
-          height={CANVAS.height - 2}
-          rx={16}
+          x={10}
+          y={10}
+          width={view.width - 20}
+          height={view.height - 20}
+          rx={18}
           fill="none"
           stroke="var(--line)"
           strokeWidth={1.5}
           pointerEvents="none"
         />
-        <g style={{ transform: `scale(${zoom})`, transformOrigin: "380px 240px" }}>
+        <g style={{ transform: `scale(${zoom})`, transformOrigin: `${view.width / 2}px ${view.height / 2}px` }}>
           {/* edges */}
           {model.edges.map((e) => {
             const g = edgeGeom(model, e);

@@ -22,7 +22,41 @@ function resolveVars(markup: string): string {
   return out.replace(/var\([^)]*\)/g, "#888888");
 }
 
-function buildSVGMarkup(svg: SVGSVGElement, transparent: boolean): string {
+interface Box {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * Crop the export to the diagram's content (the zoomable group) plus a margin,
+ * so the file is tight regardless of how large the responsive canvas grew. Falls
+ * back to the live viewBox, then to the base canvas, if the bounding box is
+ * unavailable (e.g. an empty diagram).
+ */
+function contentBox(svg: SVGSVGElement): Box {
+  const group = svg.querySelector("g");
+  if (group) {
+    try {
+      const b = (group as SVGGraphicsElement).getBBox();
+      if (b.width > 0 && b.height > 0) {
+        const pad = 40;
+        return { x: b.x - pad, y: b.y - pad, width: b.width + 2 * pad, height: b.height + 2 * pad };
+      }
+    } catch {
+      // getBBox can throw if the node is not rendered; fall through.
+    }
+  }
+  const vb = svg.getAttribute("viewBox")?.split(/[\s,]+/).map(Number);
+  if (vb && vb.length === 4 && vb.every((n) => Number.isFinite(n))) {
+    return { x: vb[0], y: vb[1], width: vb[2], height: vb[3] };
+  }
+  return { x: 0, y: 0, width: CANVAS.width, height: CANVAS.height };
+}
+
+function buildSVGMarkup(svg: SVGSVGElement, transparent: boolean): { markup: string } & Box {
+  const box = contentBox(svg);
   const clone = svg.cloneNode(true) as SVGSVGElement;
 
   // Reset the zoom transform so export is always the full, unzoomed diagram.
@@ -32,20 +66,20 @@ function buildSVGMarkup(svg: SVGSVGElement, transparent: boolean): string {
   });
 
   clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-  clone.setAttribute("width", String(CANVAS.width));
-  clone.setAttribute("height", String(CANVAS.height));
-  clone.setAttribute("viewBox", `0 0 ${CANVAS.width} ${CANVAS.height}`);
+  clone.setAttribute("width", String(box.width));
+  clone.setAttribute("height", String(box.height));
+  clone.setAttribute("viewBox", `${box.x} ${box.y} ${box.width} ${box.height}`);
 
   let serialized = new XMLSerializer().serializeToString(clone);
 
   if (!transparent) {
     const canvasColor =
       getComputedStyle(document.documentElement).getPropertyValue("--canvas").trim() || "#ffffff";
-    const bg = `<rect x="0" y="0" width="${CANVAS.width}" height="${CANVAS.height}" fill="${canvasColor}"/>`;
+    const bg = `<rect x="${box.x}" y="${box.y}" width="${box.width}" height="${box.height}" fill="${canvasColor}"/>`;
     serialized = serialized.replace(/(<svg[^>]*>)/, `$1${bg}`);
   }
 
-  return resolveVars(serialized);
+  return { markup: resolveVars(serialized), ...box };
 }
 
 function triggerDownload(url: string, filename: string): void {
@@ -58,7 +92,7 @@ function triggerDownload(url: string, filename: string): void {
 }
 
 export function exportSVG(svg: SVGSVGElement, filename = "dag.svg", transparent = false): void {
-  const markup = buildSVGMarkup(svg, transparent);
+  const { markup } = buildSVGMarkup(svg, transparent);
   const blob = new Blob([markup], { type: "image/svg+xml;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   triggerDownload(url, filename);
@@ -71,22 +105,22 @@ export function exportPNG(
   scale = 2,
   transparent = false,
 ): Promise<void> {
-  const markup = buildSVGMarkup(svg, transparent);
+  const { markup, width, height } = buildSVGMarkup(svg, transparent);
   const src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(markup);
 
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement("canvas");
-      canvas.width = CANVAS.width * scale;
-      canvas.height = CANVAS.height * scale;
+      canvas.width = width * scale;
+      canvas.height = height * scale;
       const ctx = canvas.getContext("2d");
       if (!ctx) {
         reject(new Error("Could not get a 2D drawing context."));
         return;
       }
       ctx.scale(scale, scale);
-      ctx.drawImage(img, 0, 0, CANVAS.width, CANVAS.height);
+      ctx.drawImage(img, 0, 0, width, height);
       canvas.toBlob((blob) => {
         if (!blob) {
           reject(new Error("Could not encode the PNG."));
