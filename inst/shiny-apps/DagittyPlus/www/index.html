@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DAGitty+ Editor</title>
+    <meta name="description" content="DAGitty+: a redesigned browser editor for drawing and analyzing causal directed acyclic graphs (DAGs)." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <!-- The causal-analysis engine, the exact same bundle the R package runs
+         through V8. Loaded as a classic script so it sets the global
+         window.DAGitty before the React module mounts. -->
+    <script src="./dagitty-alg.js"></script>
+    <script src="./example-dags.js"></script>
+    <script type="module" crossorigin src="./assets/index-Cpn2qv1n.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-DiVduvYu.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

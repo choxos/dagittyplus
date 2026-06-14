@@ -10,6 +10,8 @@
 \alias{latents<-}
 \alias{adjustedNodes}
 \alias{adjustedNodes<-}
+\alias{selectedNodes}
+\alias{selectedNodes<-}
 \alias{setVariableStatus}
 \title{Variable Statuses}
 \usage{
@@ -29,6 +31,10 @@ adjustedNodes(x)
 
 adjustedNodes(x) <- value
 
+selectedNodes(x)
+
+selectedNodes(x) <- value
+
 setVariableStatus(x, status, value)
 }
 \arguments{
@@ -36,7 +42,8 @@ setVariableStatus(x, status, value)
 
 \item{value}{character vector; names of variables to receive the given status.}
 
-\item{status}{character, one of "exposure", "outcome" or "latent".}
+\item{status}{character, one of "exposure", "outcome", "latent",
+"adjustedNode", or "selected".}
 }
 \description{
 Get or set variables with a given status in a graph. Variables in dagitty graphs can

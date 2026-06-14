@@ -568,11 +568,22 @@ adjustedNodes <- function( x ){
 	setVariableStatus(x, "adjustedNode", value )
 }
 
+#' @rdname VariableStatus
+#' @export
+selectedNodes <- function( x ){
+	.nodesWithProperty( x, "selectedNode" )
+}
+#' @rdname VariableStatus
+#' @export
+'selectedNodes<-' <- function( x, value ){
+	setVariableStatus(x, "selected", value )
+}
+
 
 #' @rdname VariableStatus
 #' @export
 setVariableStatus <- function( x, status, value ) {
-	allowed.statuses <-  c("exposure","outcome","latent","adjustedNode")
+	allowed.statuses <-  c("exposure","outcome","latent","adjustedNode","selected")
 	if( !(status %in% allowed.statuses) ){
 		stop( "Status must be one of: ", paste(allowed.statuses,collapse=", ") )
 	}
@@ -590,6 +601,8 @@ setVariableStatus <- function( x, status, value ) {
 			jsstatname <- "LatentNode"
 		} else if (status == "adjustedNode" ){
 			jsstatname <- "AdjustedNode"
+		} else if (status == "selected" ){
+			jsstatname <- "SelectedNode"
 		}
 		.jseval( paste0( "global.",xv,".removeAll",jsstatname,"s()" ) )
 		for( n in value ){
@@ -1647,8 +1660,27 @@ downloadGraph <- function(x="dagitty.net/mz-Tuw9"){
 	if( !requireNamespace( "base64enc", quietly=TRUE ) ){
 		stop("This function requires the package 'base64enc'!")
 	}
-	id <- gsub( "dagitty\\.net\\/m(.*)$", "\\1", x )
-	r <- base64enc::base64decode(scan(paste0("http://dagitty.net/dags/load.php?id=",id),"character"))
+	# Accept a full dagitty.net URL or a bare id, then validate strictly.
+	id <- sub( "^.*dagitty\\.net/m", "", x )
+	if( !grepl( "^[A-Za-z0-9_-]+$", id ) ){
+		stop("Invalid dagitty.net graph id: '", id, "'")
+	}
+	# Fetch over HTTPS with a bounded timeout and an explicit error on failure.
+	old.timeout <- options( timeout = 30 )
+	on.exit( options( old.timeout ), add = TRUE )
+	url <- paste0( "https://dagitty.net/dags/load.php?id=",
+		utils::URLencode( id, reserved = TRUE ) )
+	con <- base::url( url )
+	on.exit( close( con ), add = TRUE )
+	txt <- tryCatch(
+		paste( readLines( con, warn = FALSE ), collapse = "" ),
+		error = function(e) stop( "Could not download graph from dagitty.net: ",
+			conditionMessage(e), call. = FALSE )
+	)
+	if( !nzchar( txt ) ){
+		stop( "dagitty.net returned an empty response for id: '", id, "'", call. = FALSE )
+	}
+	r <- base64enc::base64decode( txt )
 	if( base64enc::checkUTF8(r) ){
 		dagitty( rawToChar( r ) )
 	} else {

@@ -9,6 +9,14 @@ library(dagittyplus)
 
 `%||%` <- function(a, b) if (is.null(a) || length(a) == 0 || !nzchar(a[1])) b else a
 
+# Serve the bundled web editor locally when it ships with the package; fall back
+# to the deployed version otherwise. The local copy is version-locked to the
+# installed package and works offline.
+www_dir <- system.file("shiny-apps", "DagittyPlus", "www", package = "dagittyplus")
+editor_local <- nzchar(www_dir) && file.exists(file.path(www_dir, "index.html"))
+if (editor_local) addResourcePath("dageditor", www_dir)
+editor_src <- if (editor_local) "dageditor/index.html" else "https://choxos.github.io/dagittyplus/app/"
+
 default_model <- 'dag {
   x [exposure]
   y [outcome]
@@ -26,13 +34,18 @@ ui <- page_navbar(
       full_screen = TRUE,
       card_header("Interactive editor"),
       tags$iframe(
-        src = "https://choxos.github.io/dagittyplus/app/",
+        src = editor_src,
         style = "width:100%; height:78vh; border:0;",
         title = "DAGitty+ web editor"
       ),
       card_footer(
-        "The browser editor runs the same analysis engine as this package. ",
-        "It needs an internet connection; the Analyze tab works offline."
+        if (editor_local) {
+          "This editor is bundled with the package and runs offline. "
+        } else {
+          "This editor is the deployed version and needs an internet connection. "
+        },
+        "To analyze a model you drew here in R, copy its code from the editor's ",
+        "Code tab and paste it into the Analyze tab."
       )
     )
   ),
