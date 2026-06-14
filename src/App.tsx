@@ -66,6 +66,7 @@ export default function App() {
   const [loadDraft, setLoadDraft] = useState("");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [projectName, setProjectName] = useState("Untitled");
 
   // In-app rename dialog (replaces the browser prompt).
   const [renameId, setRenameId] = useState<string | null>(null);
@@ -271,25 +272,37 @@ export default function App() {
 
   /* ----------------------------------------------------------------- export */
 
-  const doExportPNG = useCallback((transparent: boolean) => {
-    const svg = svgRef.current;
-    if (!svg) {
-      setToast("Nothing to export yet.");
-      return;
-    }
-    exportPNG(svg, "dag.png", 2, transparent).catch(() => {
-      setToast("Could not export the PNG. Try the SVG option instead.");
-    });
-  }, []);
+  // Filenames use the project name: "Untitled_DAG.png", "MyStudy_DAG.svg", ...
+  const fileBase = useCallback(
+    () => (projectName.trim() || "Untitled").replace(/[^A-Za-z0-9._-]+/g, "_"),
+    [projectName],
+  );
 
-  const doExportSVG = useCallback((transparent: boolean) => {
-    const svg = svgRef.current;
-    if (!svg) {
-      setToast("Nothing to export yet.");
-      return;
-    }
-    exportSVG(svg, "dag.svg", transparent);
-  }, []);
+  const doExportPNG = useCallback(
+    (transparent: boolean) => {
+      const svg = svgRef.current;
+      if (!svg) {
+        setToast("Nothing to export yet.");
+        return;
+      }
+      exportPNG(svg, `${fileBase()}_DAG.png`, 2, transparent).catch(() => {
+        setToast("Could not export the PNG. Try the SVG option instead.");
+      });
+    },
+    [fileBase],
+  );
+
+  const doExportSVG = useCallback(
+    (transparent: boolean) => {
+      const svg = svgRef.current;
+      if (!svg) {
+        setToast("Nothing to export yet.");
+        return;
+      }
+      exportSVG(svg, `${fileBase()}_DAG.svg`, transparent);
+    },
+    [fileBase],
+  );
 
   /* -------------------------------------------------------------- zoom etc */
 
@@ -370,6 +383,8 @@ export default function App() {
       <Header
         theme={theme}
         onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+        projectName={projectName}
+        onRenameProject={setProjectName}
         onNew={newModel}
         onLoadExample={loadExampleCode}
         onOpenLoad={openLoad}
