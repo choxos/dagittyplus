@@ -31,6 +31,8 @@ its tooling, without changing any analysis behavior.
 * Added cross-surface CI: an engine-parity check (the vendored DAGitty engine is
   byte-identical across the R package, the bundled Shiny editor, and the web
   app) and the JavaScript engine QUnit suite.
+* The package prints a brief startup message on load, with the version and
+  pointers to `dagitty()`, `launch_dagittyplus()`, and the web editor.
 
 # dagitty 0.3-2
 
