@@ -73,12 +73,13 @@ function boundaryDist(halfW: number, ry: number, ux: number, uy: number): number
 }
 
 /** Drawing role: first matching flag wins (matches the design's precedence). */
-type DrawRole = "exposure" | "outcome" | "adjusted" | "latent" | "plain";
+type DrawRole = "exposure" | "outcome" | "adjusted" | "latent" | "selected" | "plain";
 function drawRole(n: DagNode): DrawRole {
   if (n.roles.exposure) return "exposure";
   if (n.roles.outcome) return "outcome";
   if (n.roles.adjusted) return "adjusted";
   if (n.roles.latent) return "latent";
+  if (n.roles.selected) return "selected";
   return "plain";
 }
 
@@ -462,6 +463,12 @@ export default function Canvas(props: CanvasProps) {
           checked: !!n.roles.latent,
           onClick: () => onToggleRole(n.id, "latent"),
         },
+        {
+          label: "Selected",
+          icon: roleDot("var(--biasing)"),
+          checked: !!n.roles.selected,
+          onClick: () => onToggleRole(n.id, "selected"),
+        },
         { divider: true },
         { label: "Rename…", onClick: () => onRename(n.id) },
         { label: "Delete variable", danger: true, onClick: () => onDeleteNode(n.id) },
@@ -627,11 +634,13 @@ export default function Canvas(props: CanvasProps) {
                 ? "var(--exposure)"
                 : role === "outcome"
                   ? "var(--outcome)"
-                  : role === "latent"
-                    ? "var(--faint)"
-                    : "var(--text)";
+                  : role === "selected"
+                    ? "var(--biasing)"
+                    : role === "latent"
+                      ? "var(--faint)"
+                      : "var(--text)";
             const textFill = role === "exposure" || role === "outcome" ? "#fff" : role === "latent" ? "var(--faint)" : "var(--text)";
-            const sw = role === "adjusted" ? 2.6 : 2;
+            const sw = role === "adjusted" || role === "selected" ? 2.6 : 2;
             const nodeDash = role === "latent" ? "4 4" : undefined;
             const caption =
               role !== "plain"
@@ -644,9 +653,11 @@ export default function Canvas(props: CanvasProps) {
                 ? "var(--exposure)"
                 : role === "outcome"
                   ? "var(--outcome)"
-                  : role === "adjusted"
-                    ? "var(--text)"
-                    : "var(--faint)";
+                  : role === "selected"
+                    ? "var(--biasing)"
+                    : role === "adjusted"
+                      ? "var(--text)"
+                      : "var(--faint)";
             return (
               <g
                 key={n.id}
@@ -821,6 +832,12 @@ export default function Canvas(props: CanvasProps) {
               <circle cx="13" cy="9" r="7" fill="var(--panel)" stroke="var(--faint)" strokeWidth={2} strokeDasharray="3 3" />
             </svg>
             Unobserved
+          </LegendItem>
+          <LegendItem>
+            <svg width="22" height="16" viewBox="0 0 26 18" aria-hidden>
+              <circle cx="13" cy="9" r="7" fill="var(--panel)" stroke="var(--biasing)" strokeWidth={2.4} />
+            </svg>
+            Selected
           </LegendItem>
         </div>
       )}
