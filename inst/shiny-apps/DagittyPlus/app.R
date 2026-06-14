@@ -25,9 +25,23 @@ default_model <- 'dag {
   x -> y
 }'
 
+# Receive the model that the embedded editor posts via its "Send to R" button,
+# hand it to the Analyze textarea, and switch to that tab. Adding the listener
+# needs no Shiny global; the callback runs later, once Shiny is available.
+editor_bridge <- tags$script(HTML(
+  "window.addEventListener('message', function(e){
+     var d = e.data;
+     if (d && d.source === 'dagittyplus-editor' && typeof d.code === 'string') {
+       Shiny.setInputValue('editor_code', d.code, {priority: 'event'});
+     }
+   });"
+))
+
 ui <- page_navbar(
+  id = "main_nav",
   title = "DAGitty+",
   theme = bs_theme(version = 5),
+  header = editor_bridge,
   nav_panel(
     "Draw",
     card(
@@ -54,8 +68,8 @@ ui <- page_navbar(
         } else {
           "This editor is the deployed version and needs an internet connection. "
         },
-        "To analyze a model you drew here in R, copy its code from the editor's ",
-        "Code tab and paste it into the Analyze tab."
+        "To analyze a model you drew here in R, use the editor's “Send to R” ",
+        "button, or copy its code from the Code tab into the Analyze tab."
       )
     )
   ),
@@ -89,6 +103,13 @@ server <- function(input, output, session) {
     req(input$code)
     tryCatch(dagitty(input$code), error = function(e) e)
   })
+
+  # The embedded editor's "Send to R" button posts its model here; load it into
+  # the Analyze form and switch to that tab.
+  observeEvent(input$editor_code, {
+    updateTextAreaInput(session, "code", value = input$editor_code)
+    nav_select("main_nav", "Analyze", session = session)
+  }, ignoreInit = TRUE)
 
   output$parse_error <- renderUI({
     p <- parsed()
