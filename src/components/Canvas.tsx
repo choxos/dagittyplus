@@ -900,25 +900,28 @@ export default function Canvas(props: CanvasProps) {
         </div>
       )}
 
-      {/* zoom controls */}
-      <div className="absolute right-4 bottom-4 z-[5] flex flex-col bg-panel border border-line rounded-[12px] shadow-panel overflow-hidden">
+      {/* diagram size control (also sets the exported file size) */}
+      <div
+        className="absolute right-4 bottom-4 z-[5] flex flex-col bg-panel border border-line rounded-[12px] shadow-panel overflow-hidden"
+        title="Diagram size — also sets the exported image size"
+      >
         <button
           onClick={onZoomIn}
-          aria-label="Zoom in"
+          aria-label="Increase diagram size"
           className="w-[38px] h-[38px] border-none bg-transparent text-text text-[18px] cursor-pointer border-b border-line hover:bg-bg transition-colors"
         >
           +
         </button>
         <button
           onClick={onZoomOut}
-          aria-label="Zoom out"
+          aria-label="Decrease diagram size"
           className="w-[38px] h-[38px] border-none bg-transparent text-text text-[18px] cursor-pointer border-b border-line hover:bg-bg transition-colors"
         >
           −
         </button>
         <button
           onClick={onZoomReset}
-          aria-label="Reset zoom"
+          aria-label="Reset diagram size to 100%"
           className="w-[38px] h-[38px] border-none bg-transparent text-dim text-[11px] font-semibold cursor-pointer hover:bg-bg transition-colors"
         >
           {Math.round(zoom * 100)}%

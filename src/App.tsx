@@ -307,11 +307,11 @@ export default function App() {
         setToast("Nothing to export yet.");
         return;
       }
-      exportPNG(svg, `${fileBase()}_DAG.png`, options).catch(() => {
+      exportPNG(svg, `${fileBase()}_DAG.png`, { ...options, scale: zoom }).catch(() => {
         setToast("Could not export the PNG. Try the SVG option instead.");
       });
     },
-    [fileBase],
+    [fileBase, zoom],
   );
 
   const doExportSVG = useCallback(
@@ -321,9 +321,9 @@ export default function App() {
         setToast("Nothing to export yet.");
         return;
       }
-      exportSVG(svg, `${fileBase()}_DAG.svg`, options);
+      exportSVG(svg, `${fileBase()}_DAG.svg`, { ...options, scale: zoom });
     },
-    [fileBase],
+    [fileBase, zoom],
   );
 
   // Hand the current model to the embedding Shiny app, which fills its Analyze
