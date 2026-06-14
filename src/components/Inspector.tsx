@@ -1,13 +1,24 @@
 import { type Analysis, type AdjustmentResult, type Implication } from "../lib/engine";
 import { type DagNode, type Role } from "../lib/dag";
 import { type Tab } from "../lib/model-ops";
-import { CheckIcon, CopyIcon, RenameIcon, TargetIcon, TrashIcon, WarningIcon } from "./icons";
+import {
+  CheckIcon,
+  CloseIcon,
+  CopyIcon,
+  RenameIcon,
+  TargetIcon,
+  TrashIcon,
+  WarningIcon,
+} from "./icons";
 
 export type Estimand = "total" | "direct" | "instrument";
 
 interface InspectorProps {
   tab: Tab;
   onTab: (t: Tab) => void;
+  /** Drawer visibility below the lg breakpoint (ignored on desktop). */
+  open?: boolean;
+  onClose?: () => void;
   analysis: Analysis;
   selected: DagNode | null;
   estimand: Estimand;
@@ -35,10 +46,19 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 export default function Inspector(props: InspectorProps) {
-  const { tab, onTab } = props;
+  const { tab, onTab, open = false, onClose } = props;
   return (
-    <aside className="flex-none w-[340px] border-l border-line bg-panel flex flex-col min-h-0">
-      <div className="flex-none flex px-3 pt-2.5 gap-0.5 border-b border-line">
+    <aside
+      className={[
+        "flex-none flex flex-col min-h-0 bg-panel border-l border-line",
+        // Desktop: static column. Below lg: fixed slide-over drawer.
+        "absolute inset-y-0 right-0 z-30 w-[min(340px,86vw)] shadow-panel",
+        "transform transition-transform duration-200 will-change-transform",
+        open ? "translate-x-0" : "translate-x-full",
+        "lg:static lg:z-auto lg:w-[340px] lg:translate-x-0 lg:shadow-none",
+      ].join(" ")}
+    >
+      <div className="flex-none flex items-center px-3 pt-2.5 gap-0.5 border-b border-line">
         {TABS.map((t) => {
           const active = tab === t.id;
           return (
@@ -55,6 +75,14 @@ export default function Inspector(props: InspectorProps) {
             </button>
           );
         })}
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close analysis panel"
+          className="lg:hidden ml-auto mb-1 flex items-center justify-center w-8 h-8 rounded-lg bg-transparent border-none text-dim hover:text-text hover:bg-bg cursor-pointer transition-colors"
+        >
+          <CloseIcon size={16} />
+        </button>
       </div>
       <div className="flex-1 overflow-y-auto p-4">
         {props.analysis.engineError && (
