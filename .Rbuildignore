@@ -28,3 +28,4 @@
 \.tar\.gz$
 ^.*\.Rcheck$
 ^node_modules$
+^dist$

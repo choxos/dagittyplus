@@ -55,6 +55,10 @@ jobs:
         with:
           node-version: 22
 
+      - name: Install the engine bundle dependencies
+        working-directory: jslib
+        run: npm install
+
       - name: Build the Node engine bundle (mirrors jslib/Makefile)
         working-directory: jslib
         run: |
