@@ -26,6 +26,7 @@ export interface DagittyGraph {
   getTargets(): Vertex[];
   getLatentNodes(): Vertex[];
   getAdjustedNodes(): Vertex[];
+  getSelectedNodes(): Vertex[];
   toString(): string;
 }
 
@@ -92,10 +93,13 @@ export interface Analysis {
   targets: string[];
   adjusted: string[];
   latent: string[];
+  selected: string[];
   totalEffect: AdjustmentResult | null;
   directEffect: AdjustmentResult | null;
   instruments: Instrument[];
   implications: Implication[];
+  /** Non-null when the engine threw while computing one of the analyses. */
+  engineError: string | null;
 }
 
 function adjustment(sets: Vertex[][]): AdjustmentResult {
@@ -107,14 +111,6 @@ function adjustment(sets: Vertex[][]): AdjustmentResult {
     return { status: "no-adjustment-needed", sets: [[]] };
   }
   return { status: "identifiable", sets: mapped };
-}
-
-function safe<T>(fn: () => T, fallback: T): T {
-  try {
-    return fn();
-  } catch {
-    return fallback;
-  }
 }
 
 /** Parse a dagitty model string and run the full causal analysis. */
@@ -133,10 +129,23 @@ export function analyze(code: string): Analysis {
     return emptyAnalysis((e as Error).message);
   }
 
+  // Record (rather than swallow) engine errors so the UI can tell a real
+  // "not identifiable" answer apart from an engine failure.
+  const errors: string[] = [];
+  const attempt = <T>(label: string, fn: () => T, fallback: T): T => {
+    try {
+      return fn();
+    } catch (e) {
+      errors.push(`${label}: ${(e as Error).message || "engine error"}`);
+      return fallback;
+    }
+  };
+
   const sources = ids(g.getSources());
   const targets = ids(g.getTargets());
   const adjusted = ids(g.getAdjustedNodes());
   const latent = ids(g.getLatentNodes());
+  const selected = ids(g.getSelectedNodes());
   const acyclic = !D.GraphAnalyzer.containsCycle(g);
   const hasEffect = sources.length > 0 && targets.length > 0 && acyclic;
 
@@ -150,14 +159,16 @@ export function analyze(code: string): Analysis {
     targets,
     adjusted,
     latent,
+    selected,
     totalEffect: hasEffect
-      ? safe(() => adjustment(D.GraphAnalyzer.listMsasTotalEffect(g)), null)
+      ? attempt("total effect", () => adjustment(D.GraphAnalyzer.listMsasTotalEffect(g)), null)
       : null,
     directEffect: hasEffect
-      ? safe(() => adjustment(D.GraphAnalyzer.listMsasDirectEffect(g)), null)
+      ? attempt("direct effect", () => adjustment(D.GraphAnalyzer.listMsasDirectEffect(g)), null)
       : null,
     instruments: hasEffect
-      ? safe(
+      ? attempt(
+          "instruments",
           () =>
             D.GraphAnalyzer.conditionalInstruments(g).map(([v, cond]) => ({
               name: v.id,
@@ -166,7 +177,8 @@ export function analyze(code: string): Analysis {
           [],
         )
       : [],
-    implications: safe(
+    implications: attempt(
+      "implications",
       () =>
         D.GraphAnalyzer.listMinimalImplications(g).map(([x, y, given]) => ({
           x,
@@ -175,6 +187,7 @@ export function analyze(code: string): Analysis {
         })),
       [],
     ),
+    engineError: errors.length ? errors.join("; ") : null,
   };
 }
 
@@ -190,9 +203,11 @@ function emptyAnalysis(error?: string): Analysis {
     targets: [],
     adjusted: [],
     latent: [],
+    selected: [],
     totalEffect: null,
     directEffect: null,
     instruments: [],
     implications: [],
+    engineError: null,
   };
 }

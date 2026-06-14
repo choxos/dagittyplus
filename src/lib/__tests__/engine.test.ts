@@ -8,6 +8,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import bundleSource from "../../../public/dagitty-alg.js?raw";
 
 import { analyze } from "../engine";
+import { parse, serialize } from "../dag";
 
 beforeAll(() => {
   // The bundle's top-level is `var DAGitty; (()=>{ ... DAGitty=n })();`, where its
@@ -52,5 +53,36 @@ describe("analyze() parity smoke test", () => {
       return im.x === "a" && im.y === "c" && ids.length === 1 && ids[0] === "b";
     });
     expect(found).toBeTruthy();
+  });
+});
+
+describe("selection-node semantics", () => {
+  it("imports and preserves [selected] nodes through parse and serialize", () => {
+    const model = parse("dag { a [exposure] b [outcome] s [selected] a->s b->s }");
+    expect(model.nodes.find((n) => n.id === "s")?.roles.selected).toBe(true);
+    const round = parse(serialize(model));
+    expect(round.nodes.find((n) => n.id === "s")?.roles.selected).toBe(true);
+    expect(analyze(serialize(model)).selected).toContain("s");
+  });
+
+  it("rejects models with unsupported (undirected) edge types", () => {
+    expect(() => parse("pdag { a -- b }")).toThrow();
+  });
+});
+
+describe("analyze() reporting", () => {
+  it("reports selected nodes and no engine error for a valid model", () => {
+    const a = analyze("dag { a [exposure] b [outcome] s [selected] a->b a->s b->s }");
+    expect(a.selected).toContain("s");
+    expect(a.engineError).toBeNull();
+  });
+});
+
+describe("parse / serialize round trip", () => {
+  it("preserves variables and edges", () => {
+    const m = parse("dag { x [exposure] y [outcome] z x->y z->x z->y }");
+    const m2 = parse(serialize(m));
+    expect(new Set(m2.nodes.map((n) => n.id))).toEqual(new Set(["x", "y", "z"]));
+    expect(m2.edges).toHaveLength(3);
   });
 });

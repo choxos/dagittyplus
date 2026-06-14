@@ -366,7 +366,13 @@ export default function App() {
       }
 
       if (!sel) return;
-      const roleKey: Record<string, Role> = { e: "exposure", o: "outcome", a: "adjusted", u: "latent" };
+      const roleKey: Record<string, Role> = {
+        e: "exposure",
+        o: "outcome",
+        a: "adjusted",
+        u: "latent",
+        s: "selected",
+      };
       if (roleKey[k]) {
         e.preventDefault();
         handleToggleRole(sel, roleKey[k]);

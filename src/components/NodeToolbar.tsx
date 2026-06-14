@@ -23,6 +23,7 @@ const ROLE_PILLS: { role: Role; key: string; title: string; color: string }[] = 
   { role: "outcome", key: "O", title: "Outcome", color: "var(--outcome)" },
   { role: "adjusted", key: "A", title: "Adjusted", color: "var(--accent)" },
   { role: "latent", key: "U", title: "Unobserved", color: "var(--accent)" },
+  { role: "selected", key: "S", title: "Selected (selection bias)", color: "var(--biasing)" },
 ];
 
 const MARGIN = 8;

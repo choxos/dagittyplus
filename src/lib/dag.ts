@@ -65,11 +65,22 @@ export function parse(code: string): DagModel {
 }
 
 export function fromGraph(g: DagittyGraph): DagModel {
+  // This editor models DAGs with directed (->) and bidirected (<->) edges only.
+  // Reject anything else (undirected, partially directed, PDAG/MAG/PAG) rather
+  // than silently coercing it into a different causal model.
+  const rawEdges = g.getEdges();
+  if (rawEdges.some((e) => e.directed !== 1 && e.directed !== 2)) {
+    throw new Error(
+      "This editor supports directed (->) and bidirected (<->) edges only; the model contains undirected or partially directed edges.",
+    );
+  }
+
   const has = (vs: Vertex[]) => new Set(vs.map((v) => v.id));
   const exposure = has(g.getSources());
   const outcome = has(g.getTargets());
   const adjusted = has(g.getAdjustedNodes());
   const latent = has(g.getLatentNodes());
+  const selected = has(g.getSelectedNodes());
 
   const placed = layout(
     g.getVertices().map((v) => ({
@@ -88,10 +99,11 @@ export function fromGraph(g: DagittyGraph): DagModel {
       outcome: outcome.has(p.id),
       adjusted: adjusted.has(p.id),
       latent: latent.has(p.id),
+      selected: selected.has(p.id),
     },
   }));
 
-  const edges: DagEdge[] = g.getEdges().map((e) => ({
+  const edges: DagEdge[] = rawEdges.map((e) => ({
     from: e.v1.id,
     to: e.v2.id,
     type: e.directed === 2 ? "bidirected" : "directed",

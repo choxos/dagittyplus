@@ -57,6 +57,19 @@ export default function Inspector(props: InspectorProps) {
         })}
       </div>
       <div className="flex-1 overflow-y-auto p-4">
+        {props.analysis.engineError && (
+          <div
+            className="mb-3 px-3 py-2.5 rounded-[9px] text-[12px]"
+            style={{
+              background: "color-mix(in srgb, var(--danger) 12%, transparent)",
+              border: "1px solid color-mix(in srgb, var(--danger) 30%, transparent)",
+              color: "var(--danger)",
+            }}
+          >
+            The engine could not finish part of the analysis, so some results may be
+            incomplete: {props.analysis.engineError}
+          </div>
+        )}
         {tab === "inspect" && <InspectTab {...props} />}
         {tab === "identify" && <IdentifyTab {...props} />}
         {tab === "implications" && <ImplicationsTab analysis={props.analysis} />}
@@ -73,6 +86,7 @@ const ROLE_CHIPS: { role: Role; label: string; key: string }[] = [
   { role: "outcome", label: "Outcome", key: "O" },
   { role: "adjusted", label: "Adjusted", key: "A" },
   { role: "latent", label: "Unobserved", key: "U" },
+  { role: "selected", label: "Selected", key: "S" },
 ];
 
 function roleSummary(n: DagNode): string {
