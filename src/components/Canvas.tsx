@@ -525,7 +525,7 @@ export default function Canvas(props: CanvasProps) {
 
       {/* tool hint */}
       {hasNodes && (
-        <div className="absolute top-4 right-4 z-[5] max-w-[280px] px-[13px] py-1.5 bg-accent-ghost border border-accent rounded-full text-accent text-[12px] font-semibold text-center">
+        <div className="hidden sm:block absolute top-4 right-4 z-[5] max-w-[280px] px-[13px] py-1.5 bg-accent-ghost border border-accent rounded-full text-accent text-[12px] font-semibold text-center">
           {pendingEdge !== null ? "Click a target node to connect · Esc to cancel" : TOOL_HINT[tool]}
         </div>
       )}
@@ -555,6 +555,18 @@ export default function Canvas(props: CanvasProps) {
           onPointerDown={onCanvasDown}
           onDoubleClick={onCanvasDoubleClick}
           onContextMenu={onCanvasContextMenu}
+        />
+        {/* Visible frame marking the bounded region nodes are clamped within. */}
+        <rect
+          x={1}
+          y={1}
+          width={CANVAS.width - 2}
+          height={CANVAS.height - 2}
+          rx={16}
+          fill="none"
+          stroke="var(--line)"
+          strokeWidth={1.5}
+          pointerEvents="none"
         />
         <g style={{ transform: `scale(${zoom})`, transformOrigin: "380px 240px" }}>
           {/* edges */}

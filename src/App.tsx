@@ -41,6 +41,22 @@ function initialTheme(): Theme {
   return "light";
 }
 
+/** Track a CSS media query; used to drive the mobile/tablet inspector drawer. */
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(
+    () => typeof window !== "undefined" && !!window.matchMedia && window.matchMedia(query).matches,
+  );
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mql = window.matchMedia(query);
+    const onChange = () => setMatches(mql.matches);
+    onChange();
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, [query]);
+  return matches;
+}
+
 export default function App() {
   const [model, setModel] = useState<DagModel>(() => {
     try {
@@ -56,6 +72,11 @@ export default function App() {
   const [selectedEdge, setSelectedEdge] = useState<SelectedEdge | null>(null);
   const [zoom, setZoom] = useState(1);
   const [estimand, setEstimand] = useState<Estimand>("total");
+
+  // The analysis panel is a static column on desktop and a slide-over drawer
+  // below the lg breakpoint, where a fixed-width sidebar would crowd the canvas.
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const [inspectorOpen, setInspectorOpen] = useState(false);
 
   // Code tab draft, kept in sync with the model unless the user is editing it.
   const [codeDraft, setCodeDraft] = useState("");
@@ -105,16 +126,27 @@ export default function App() {
   /* -------------------------------------------------------------- selection */
 
   // Selecting a node (or clearing) drops any edge selection.
-  const selectNode = useCallback((id: string | null) => {
-    setSelectedId(id);
-    setSelectedEdge(null);
-  }, []);
+  const selectNode = useCallback(
+    (id: string | null) => {
+      setSelectedId(id);
+      setSelectedEdge(null);
+      // On a phone/tablet, reveal the drawer so the selection's details show.
+      if (id && !isDesktop) setInspectorOpen(true);
+    },
+    [isDesktop],
+  );
 
   // Selecting an edge drops the node selection so only one toolbar shows.
-  const selectEdge = useCallback((edge: SelectedEdge | null) => {
-    setSelectedEdge(edge);
-    if (edge) setSelectedId(null);
-  }, []);
+  const selectEdge = useCallback(
+    (edge: SelectedEdge | null) => {
+      setSelectedEdge(edge);
+      if (edge) {
+        setSelectedId(null);
+        if (!isDesktop) setInspectorOpen(true);
+      }
+    },
+    [isDesktop],
+  );
 
   /* ----------------------------------------------------------- model edits */
 
@@ -399,7 +431,7 @@ export default function App() {
         onAbout={() => setModal("about")}
       />
 
-      <div className="flex-1 flex min-h-0">
+      <div className="flex-1 flex min-h-0 relative overflow-hidden">
         <ToolRail
           tool={tool}
           onSelectTool={setTool}
@@ -452,7 +484,42 @@ export default function App() {
           onApplyCode={applyCode}
           onRevertCode={revertCode}
           onCopyCode={copyCode}
+          open={inspectorOpen}
+          onClose={() => setInspectorOpen(false)}
         />
+
+        {/* Drawer backdrop (mobile/tablet only). */}
+        {inspectorOpen && (
+          <button
+            type="button"
+            aria-label="Close analysis panel"
+            onClick={() => setInspectorOpen(false)}
+            className="lg:hidden absolute inset-0 z-20 bg-black/35 border-none cursor-default"
+          />
+        )}
+
+        {/* Edge tab that opens the drawer (mobile/tablet only). */}
+        {!inspectorOpen && (
+          <button
+            type="button"
+            onClick={() => setInspectorOpen(true)}
+            aria-label="Open analysis panel"
+            className="lg:hidden absolute top-1/2 right-0 -translate-y-1/2 z-[15] flex items-center justify-center w-9 h-16 rounded-l-[14px] bg-accent text-white shadow-panel border-none cursor-pointer"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M15 6l-6 6 6 6" />
+            </svg>
+          </button>
+        )}
       </div>
 
       <Footer acyclic={analysis.acyclic} variables={analysis.variables.length} edges={analysis.edges} />
