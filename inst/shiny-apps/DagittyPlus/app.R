@@ -33,14 +33,24 @@ ui <- page_navbar(
     card(
       full_screen = TRUE,
       card_header("Interactive editor"),
-      tags$iframe(
-        src = editor_src,
-        style = "width:100%; height:78vh; border:0;",
-        title = "DAGitty+ web editor"
+      # Full-bleed body so the embedded editor uses the whole card width; card
+      # padding would otherwise shrink the iframe below the editor's floor on a
+      # phone and clip its header controls.
+      card_body(
+        padding = 0,
+        tags$iframe(
+          src = editor_src,
+          style = "width:100%; height:78vh; border:0;",
+          title = "DAGitty+ web editor"
+        )
       ),
       card_footer(
         if (editor_local) {
-          "This editor is bundled with the package and runs offline. "
+          paste0(
+            "This editor is bundled with the package; its analysis engine and ",
+            "assets load locally (web fonts load from the internet when available, ",
+            "and fall back to system fonts). "
+          )
         } else {
           "This editor is the deployed version and needs an internet connection. "
         },
@@ -53,7 +63,11 @@ ui <- page_navbar(
     "Analyze",
     layout_sidebar(
       sidebar = sidebar(
+        title = "Model controls",
         width = 360,
+        # Start open so the input form is visible first on a phone, where it
+        # would otherwise hide behind an unlabeled toggle.
+        open = "open",
         textAreaInput("code", "Model (dagitty syntax)", value = default_model, rows = 12),
         selectInput("exposure", "Exposure", choices = NULL),
         selectInput("outcome", "Outcome", choices = NULL),
