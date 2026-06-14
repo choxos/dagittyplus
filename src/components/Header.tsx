@@ -12,6 +12,8 @@ interface MenuItem {
 interface HeaderProps {
   theme: "light" | "dark";
   onToggleTheme: () => void;
+  projectName: string;
+  onRenameProject: (name: string) => void;
   onNew: () => void;
   onLoadExample: (code: string) => void;
   onOpenLoad: () => void;
@@ -113,9 +115,57 @@ function ExamplesMenu({ onLoadExample }: { onLoadExample: (code: string) => void
   );
 }
 
+/** Editable project name; the export filenames are built from it. */
+function ProjectTitle({ name, onChange }: { name: string; onChange: (n: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(name);
+
+  useEffect(() => {
+    if (!editing) setDraft(name);
+  }, [name, editing]);
+
+  const commit = () => {
+    onChange(draft.trim() || "Untitled");
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        value={draft}
+        onFocus={(e) => e.target.select()}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") commit();
+          if (e.key === "Escape") {
+            setDraft(name);
+            setEditing(false);
+          }
+        }}
+        spellCheck={false}
+        aria-label="Project name"
+        className="h-[30px] w-[170px] px-2 rounded-[8px] border border-accent bg-bg text-text text-[13.5px] font-medium outline-none"
+      />
+    );
+  }
+  return (
+    <button
+      onClick={() => setEditing(true)}
+      title="Rename project (used in export filenames)"
+      className="h-[30px] max-w-[200px] truncate px-2 rounded-[8px] text-[13.5px] font-medium text-dim hover:text-text hover:bg-bg cursor-text transition-colors"
+    >
+      {name}
+    </button>
+  );
+}
+
 export default function Header({
   theme,
   onToggleTheme,
+  projectName,
+  onRenameProject,
   onNew,
   onLoadExample,
   onOpenLoad,
@@ -166,6 +216,9 @@ export default function Header({
           <span className="font-sans font-bold text-[18px] text-accent">+</span>
         </div>
       </div>
+
+      <div className="h-5 w-px bg-line hidden sm:block" />
+      <ProjectTitle name={projectName} onChange={onRenameProject} />
 
       <nav className="hidden sm:flex items-center gap-0.5">
         <Menu label="Model" items={modelItems} />

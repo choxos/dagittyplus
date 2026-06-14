@@ -138,18 +138,32 @@ function layout(raw: RawPos[]): { id: string; x: number; y: number }[] {
   }));
 }
 
-/** A small built-in starter model (confounding + a mediator). */
+/**
+ * A starter model that shows off the app: an exposure and outcome, a measured
+ * confounder to adjust for (z), a mediator (m) so total and direct effects
+ * differ, a conditional instrument (iv), an unobserved common cause (u, drawn
+ * as a dashed "unobserved" node), and a collider (s).
+ */
 export function exampleModel(): DagModel {
   return parse(
     `dag {
-      x [exposure,pos="1,2"]
-      y [outcome,pos="5,2"]
-      z [pos="3,1"]
-      m [pos="3,2"]
-      z -> x
-      z -> y
+      iv [pos="0.0,1.5"]
+      x [exposure,pos="1.3,1.5"]
+      m [pos="2.6,2.7"]
+      y [outcome,pos="3.9,1.5"]
+      z [pos="2.0,0.3"]
+      u [latent,pos="0.7,0.3"]
+      s [pos="3.2,0.3"]
+      iv -> x
+      x -> y
       x -> m
       m -> y
+      z -> x
+      z -> y
+      x -> s
+      y -> s
+      u -> iv
+      u -> z
     }`,
   );
 }

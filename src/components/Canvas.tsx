@@ -47,6 +47,31 @@ function nodeRadius(n: DagNode): number {
   return n.roles.adjusted ? ADJ_R : NODE_R;
 }
 
+// Measure label width so nodes grow to fit long names instead of clipping.
+let measureCtx: CanvasRenderingContext2D | null = null;
+function labelWidth(text: string): number {
+  if (typeof document !== "undefined") {
+    if (!measureCtx) measureCtx = document.createElement("canvas").getContext("2d");
+    if (measureCtx) {
+      measureCtx.font = "700 17px Inter, system-ui, sans-serif";
+      const w = measureCtx.measureText(text).width;
+      if (w > 0) return w;
+    }
+  }
+  return text.length * 9.5;
+}
+
+/** Horizontal half-width: a circle for short ids, a pill for long ones. */
+function nodeHalfWidth(n: DagNode): number {
+  return Math.max(nodeRadius(n), labelWidth(n.id) / 2 + 12);
+}
+
+/** Distance from a node center to its elliptical boundary along a unit vector. */
+function boundaryDist(halfW: number, ry: number, ux: number, uy: number): number {
+  const d = Math.sqrt((ux * ux) / (halfW * halfW) + (uy * uy) / (ry * ry));
+  return d > 0 ? 1 / d : Math.max(halfW, ry);
+}
+
 /** Drawing role: first matching flag wins (matches the design's precedence). */
 type DrawRole = "exposure" | "outcome" | "adjusted" | "latent" | "plain";
 function drawRole(n: DagNode): DrawRole {
@@ -92,20 +117,22 @@ function edgeGeom(model: DagModel, e: DagEdge): EdgeGeom | null {
   const uy = dy / L;
   const px = -uy;
   const py = ux;
-  const sr = nodeRadius(s) + 3;
-  const tr = nodeRadius(t) + 11;
+  const sBound = boundaryDist(nodeHalfWidth(s), nodeRadius(s), ux, uy);
+  const tBound = boundaryDist(nodeHalfWidth(t), nodeRadius(t), ux, uy);
+  const sr = sBound + 3;
+  const tr = tBound + 11;
   const x1 = s.x + ux * sr;
   const y1 = s.y + uy * sr;
   const x2 = t.x - ux * tr;
   const y2 = t.y - uy * tr;
-  const tipx = t.x - ux * (nodeRadius(t) + 3);
-  const tipy = t.y - uy * (nodeRadius(t) + 3);
+  const tipx = t.x - ux * (tBound + 3);
+  const tipy = t.y - uy * (tBound + 3);
   const bx = tipx - ux * 12;
   const by = tipy - uy * 12;
   const arrow = `${tipx.toFixed(1)},${tipy.toFixed(1)} ${(bx + px * 6).toFixed(1)},${(by + py * 6).toFixed(1)} ${(bx - px * 6).toFixed(1)},${(by - py * 6).toFixed(1)}`;
   // Second arrowhead at the source for bidirected edges.
-  const stipx = s.x + ux * (nodeRadius(s) + 3);
-  const stipy = s.y + uy * (nodeRadius(s) + 3);
+  const stipx = s.x + ux * (sBound + 3);
+  const stipy = s.y + uy * (sBound + 3);
   const sbx = stipx + ux * 12;
   const sby = stipy + uy * 12;
   const backArrow = `${stipx.toFixed(1)},${stipy.toFixed(1)} ${(sbx + px * 6).toFixed(1)},${(sby + py * 6).toFixed(1)} ${(sbx - px * 6).toFixed(1)},${(sby - py * 6).toFixed(1)}`;
@@ -585,6 +612,7 @@ export default function Canvas(props: CanvasProps) {
           {model.nodes.map((n) => {
             const role = drawRole(n);
             const r = nodeRadius(n);
+            const halfW = nodeHalfWidth(n);
             const selected = n.id === selectedId;
             const isSquare = role === "adjusted";
             const isPending = n.id === pendingEdge;
@@ -628,9 +656,9 @@ export default function Canvas(props: CanvasProps) {
               >
                 {(selected || isPending) && (
                   <rect
-                    x={n.x - r - 7}
+                    x={n.x - halfW - 7}
                     y={n.y - r - 7}
-                    width={r * 2 + 14}
+                    width={halfW * 2 + 14}
                     height={r * 2 + 14}
                     rx={isSquare ? 14 : r + 7}
                     fill="none"
@@ -639,28 +667,17 @@ export default function Canvas(props: CanvasProps) {
                     strokeDasharray="4 4"
                   />
                 )}
-                {isSquare ? (
-                  <rect
-                    x={n.x - r}
-                    y={n.y - r}
-                    width={r * 2}
-                    height={r * 2}
-                    rx={8}
-                    fill={fill}
-                    stroke={stroke}
-                    strokeWidth={sw}
-                  />
-                ) : (
-                  <circle
-                    cx={n.x}
-                    cy={n.y}
-                    r={r}
-                    fill={fill}
-                    stroke={stroke}
-                    strokeWidth={sw}
-                    strokeDasharray={nodeDash}
-                  />
-                )}
+                <rect
+                  x={n.x - halfW}
+                  y={n.y - r}
+                  width={halfW * 2}
+                  height={r * 2}
+                  rx={isSquare ? 9 : r}
+                  fill={fill}
+                  stroke={stroke}
+                  strokeWidth={sw}
+                  strokeDasharray={nodeDash}
+                />
                 <text
                   x={n.x}
                   y={n.y}
