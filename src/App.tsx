@@ -91,6 +91,17 @@ export default function App() {
   const code = useMemo(() => serialize(model), [model]);
   const analysis = useMemo(() => analyze(code), [code]);
 
+  // True when running inside the bundled Shiny app's iframe; enables a button
+  // that pushes the model straight into the R Analyze tab (cross-origin access
+  // to window.top throws, which also means we are embedded).
+  const embedded = useMemo(() => {
+    try {
+      return window.self !== window.top;
+    } catch {
+      return true;
+    }
+  }, []);
+
   // Keep the Code tab in sync when the model changes and there are no unsaved edits.
   useEffect(() => {
     if (!codeDirty) setCodeDraft(code);
@@ -315,6 +326,13 @@ export default function App() {
     [fileBase],
   );
 
+  // Hand the current model to the embedding Shiny app, which fills its Analyze
+  // tab and switches to it. A no-op outside an iframe.
+  const sendToR = useCallback(() => {
+    window.parent?.postMessage({ source: "dagittyplus-editor", type: "model", code }, "*");
+    setToast("Sent to the Analyze tab.");
+  }, [code]);
+
   /* -------------------------------------------------------------- zoom etc */
 
   const zoomIn = useCallback(() => setZoom((z) => Math.min(1.8, +(z + 0.15).toFixed(2))), []);
@@ -400,6 +418,7 @@ export default function App() {
       <Header
         theme={theme}
         onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+        onSendToR={embedded ? sendToR : undefined}
         projectName={projectName}
         onRenameProject={setProjectName}
         onNew={newModel}
