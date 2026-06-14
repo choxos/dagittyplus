@@ -1,0 +1,72 @@
+# Cross-surface checks. The vendored DAGitty engine must be byte-identical across
+# the R package (inst/js), the bundled Shiny editor (inst/shiny-apps/.../www), and
+# the web app (public/ on the webapp branch), and the low-level JavaScript engine
+# tests must pass.
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+name: engine-checks.yaml
+
+permissions: read-all
+
+jobs:
+  engine-parity:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the R package (master)
+        uses: actions/checkout@v4
+        with:
+          path: pkg
+
+      - name: Check out the web app (webapp branch)
+        uses: actions/checkout@v4
+        with:
+          ref: webapp
+          path: web
+
+      - name: Compare vendored engine files
+        run: |
+          fail=0
+          for f in dagitty-alg.js example-dags.js; do
+            ref="pkg/inst/js/$f"
+            for cand in "web/public/$f" "pkg/inst/shiny-apps/DagittyPlus/www/$f"; do
+              if [ ! -f "$cand" ]; then
+                echo "MISSING: $cand"; fail=1; continue
+              fi
+              if cmp -s "$ref" "$cand"; then
+                echo "ok: $cand matches $ref"
+              else
+                echo "DRIFT: $cand differs from $ref"; fail=1
+              fi
+            done
+          done
+          exit $fail
+
+  js-engine-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build the Node engine bundle (mirrors jslib/Makefile)
+        working-directory: jslib
+        run: |
+          cat node-pre.js \
+            graph/Class.js graph/Hash.js graph/Graph.js graph/GraphAnalyzer.js \
+            graph/GraphLayouter.js graph/GraphParser.js graph/GraphTransformer.js \
+            graph/GraphGenerator.js graph/ObservedGraph.js graph/GraphSerializer.js \
+            graph/MPolynomials.js parser/GraphDotParser.js \
+            node-post.js > dagitty-node.js
+
+      - name: Run the QUnit engine tests
+        working-directory: test
+        run: |
+          npm install
+          npm test
