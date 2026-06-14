@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { examplesByField } from "../lib/examples";
 import { ExportIcon, LogoMark, MoonIcon, SunIcon } from "./icons";
 import ExportMenu from "./ExportMenu";
+import { type PngExportOptions, type SvgExportOptions } from "../lib/export";
 
 interface MenuItem {
   label: string;
@@ -17,8 +18,8 @@ interface HeaderProps {
   onNew: () => void;
   onLoadExample: (code: string) => void;
   onOpenLoad: () => void;
-  onExportPNG: (transparent: boolean) => void;
-  onExportSVG: (transparent: boolean) => void;
+  onExportPNG: (options: PngExportOptions) => void;
+  onExportSVG: (options: SvgExportOptions) => void;
   onAbout: () => void;
 }
 

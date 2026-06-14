@@ -10,7 +10,12 @@ import {
   type Role,
 } from "./lib/dag";
 import { loadExamples } from "./lib/examples";
-import { exportPNG, exportSVG } from "./lib/export";
+import {
+  exportPNG,
+  exportSVG,
+  type PngExportOptions,
+  type SvgExportOptions,
+} from "./lib/export";
 import {
   addEdge,
   addNode,
@@ -285,13 +290,13 @@ export default function App() {
   );
 
   const doExportPNG = useCallback(
-    (transparent: boolean) => {
+    (options: PngExportOptions) => {
       const svg = svgRef.current;
       if (!svg) {
         setToast("Nothing to export yet.");
         return;
       }
-      exportPNG(svg, `${fileBase()}_DAG.png`, 2, transparent).catch(() => {
+      exportPNG(svg, `${fileBase()}_DAG.png`, options).catch(() => {
         setToast("Could not export the PNG. Try the SVG option instead.");
       });
     },
@@ -299,13 +304,13 @@ export default function App() {
   );
 
   const doExportSVG = useCallback(
-    (transparent: boolean) => {
+    (options: SvgExportOptions) => {
       const svg = svgRef.current;
       if (!svg) {
         setToast("Nothing to export yet.");
         return;
       }
-      exportSVG(svg, `${fileBase()}_DAG.svg`, transparent);
+      exportSVG(svg, `${fileBase()}_DAG.svg`, options);
     },
     [fileBase],
   );
