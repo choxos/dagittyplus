@@ -57,7 +57,7 @@
 <!-- badges: start -->
 
 <p><code>dagittyplus</code> is an enhanced fork of the <a href="https://github.com/jtextor/dagitty" class="external-link"><code>dagitty</code></a> R package for the graphical analysis of structural causal models, also known as directed acyclic graphs (DAGs). It computes covariate adjustment sets for estimating causal effects, enumerates instrumental variables, derives testable implications (d-separation and vanishing tetrads), generates equivalent models, and simulates data from a model.</p>
-<p>Every exported function and the <code>dagitty</code> S3 class are kept identical to the upstream package, so existing <code>dagitty</code> code and the <a href="https://r-causal.github.io/ggdag/" class="external-link"><code>ggdag</code></a> package work unchanged.</p>
+<p>The upstream exported functions and the <code>dagitty</code> S3 class are preserved, so existing <code>dagitty</code> code and the <a href="https://r-causal.github.io/ggdag/" class="external-link"><code>ggdag</code></a> package work unchanged. <code>dagittyplus</code> adds interfaces of its own on top: a browser editor, a bundled Shiny app via <code><a href="reference/launch_dagittyplus.html">launch_dagittyplus()</a></code>, and selected-node helpers (<code><a href="reference/VariableStatus.html">selectedNodes()</a></code> / <code>selectedNodes&lt;-</code>).</p>
 <div class="section level2">
 <h2 id="try-it-in-your-browser">Try it in your browser<a class="anchor" aria-label="anchor" href="#try-it-in-your-browser"></a>
 </h2>

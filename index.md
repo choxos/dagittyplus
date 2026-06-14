@@ -8,9 +8,15 @@ estimating causal effects, enumerates instrumental variables, derives
 testable implications (d-separation and vanishing tetrads), generates
 equivalent models, and simulates data from a model.
 
-Every exported function and the `dagitty` S3 class are kept identical to
-the upstream package, so existing `dagitty` code and the
+The upstream exported functions and the `dagitty` S3 class are
+preserved, so existing `dagitty` code and the
 [`ggdag`](https://r-causal.github.io/ggdag/) package work unchanged.
+`dagittyplus` adds interfaces of its own on top: a browser editor, a
+bundled Shiny app via
+[`launch_dagittyplus()`](https://choxos.github.io/dagittyplus/reference/launch_dagittyplus.md),
+and selected-node helpers
+([`selectedNodes()`](https://choxos.github.io/dagittyplus/reference/VariableStatus.md)
+/ `selectedNodes<-`).
 
 ## Try it in your browser
 
