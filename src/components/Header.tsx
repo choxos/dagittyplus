@@ -155,7 +155,7 @@ function ProjectTitle({ name, onChange }: { name: string; onChange: (n: string) 
     <button
       onClick={() => setEditing(true)}
       title="Rename project (used in export filenames)"
-      className="h-[30px] max-w-[200px] truncate px-2 rounded-[8px] text-[13.5px] font-medium text-dim hover:text-text hover:bg-bg cursor-text transition-colors"
+      className="h-[30px] max-w-[110px] sm:max-w-[200px] min-w-0 shrink truncate px-2 rounded-[8px] text-[13.5px] font-medium text-dim hover:text-text hover:bg-bg cursor-text transition-colors"
     >
       {name}
     </button>
@@ -207,7 +207,7 @@ export default function Header({
   ];
 
   return (
-    <header className="flex-none flex items-center gap-[18px] h-14 px-4 bg-panel border-b border-line z-30">
+    <header className="flex-none flex items-center gap-2.5 sm:gap-[18px] h-14 px-3 sm:px-4 bg-panel border-b border-line z-30">
       <div className="flex items-center gap-2.5">
         <div className="w-[30px] h-[30px] rounded-[9px] bg-accent flex items-center justify-center shadow-[0_2px_8px_-2px_var(--accent)]">
           <LogoMark />
@@ -242,10 +242,10 @@ export default function Header({
         <button
           onClick={() => setExportOpen((o) => !o)}
           aria-expanded={exportOpen}
-          className="flex items-center gap-[7px] h-[38px] px-4 rounded-[10px] border-none bg-accent text-white text-[13.5px] font-semibold cursor-pointer shadow-[0_2px_10px_-3px_var(--accent)] hover:brightness-110 transition"
+          className="flex items-center gap-[7px] h-[38px] px-3 sm:px-4 rounded-[10px] border-none bg-accent text-white text-[13.5px] font-semibold cursor-pointer shadow-[0_2px_10px_-3px_var(--accent)] hover:brightness-110 transition"
         >
           <ExportIcon />
-          Export
+          <span className="hidden sm:inline">Export</span>
         </button>
         {exportOpen && (
           <ExportMenu
