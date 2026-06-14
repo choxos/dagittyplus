@@ -183,6 +183,69 @@ function InspectTab({ analysis, selected, onToggleRole, onRename, onDelete }: In
           </div>
         ))}
       </div>
+
+      <div className={`${sectionLabel} mb-2 mt-4 ml-0.5`}>Structure</div>
+      <div className="flex flex-col gap-2">
+        <StructureRow
+          label="Mediators"
+          dot="var(--causal)"
+          ids={analysis.mediators}
+          note={
+            analysis.sources.length === 1 && analysis.targets.length === 1
+              ? undefined
+              : "set one exposure and one outcome"
+          }
+        />
+        <StructureRow
+          label="Common causes"
+          dot="var(--biasing)"
+          ids={analysis.confounders}
+          note={
+            analysis.sources.length === 1 && analysis.targets.length === 1
+              ? undefined
+              : "set one exposure and one outcome"
+          }
+        />
+        <StructureRow label="Colliders" dot="var(--neutral)" ids={analysis.colliders} />
+      </div>
+    </div>
+  );
+}
+
+function StructureRow({
+  label,
+  dot,
+  ids,
+  note,
+}: {
+  label: string;
+  dot: string;
+  ids: string[];
+  note?: string;
+}) {
+  return (
+    <div className="rounded-[10px] border border-line bg-bg px-[13px] py-2.5">
+      <div className="flex items-center gap-2 mb-1.5">
+        <span className="w-2 h-2 rounded-full" style={{ background: dot }} />
+        <span className="text-[12px] font-semibold text-text">{label}</span>
+        <span className="text-[11px] text-faint ml-auto">{ids.length}</span>
+      </div>
+      {note ? (
+        <div className="text-[11.5px] text-faint">{note}</div>
+      ) : ids.length === 0 ? (
+        <div className="text-[11.5px] text-faint">none</div>
+      ) : (
+        <div className="flex flex-wrap gap-1">
+          {ids.map((id) => (
+            <span
+              key={id}
+              className="px-2 py-0.5 rounded-full bg-panel border border-line text-[11.5px] font-mono text-text"
+            >
+              {id}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

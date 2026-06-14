@@ -86,3 +86,17 @@ describe("parse / serialize round trip", () => {
     expect(m2.edges).toHaveLength(3);
   });
 });
+
+describe("structure (mediators, confounders, colliders)", () => {
+  it("classifies mediators, common causes, and colliders", () => {
+    const a = analyze("dag { x [exposure] y [outcome] z->x z->y x->m m->y x->y x->c y->c }");
+    expect(a.mediators).toEqual(["m"]);
+    expect(a.confounders).toEqual(["z"]);
+    expect(a.colliders.slice().sort()).toEqual(["c", "y"]);
+  });
+
+  it("excludes instruments from confounders", () => {
+    const a = analyze("dag { x [exposure] y [outcome] iv->x z->x z->y x->y }");
+    expect(a.confounders).toEqual(["z"]);
+  });
+});
