@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { type ExampleModel } from "../lib/examples";
+import { examplesByField } from "../lib/examples";
 import { ExportIcon, LogoMark, MoonIcon, SunIcon } from "./icons";
+import ExportMenu from "./ExportMenu";
 
 interface MenuItem {
   label: string;
@@ -11,11 +12,11 @@ interface MenuItem {
 interface HeaderProps {
   theme: "light" | "dark";
   onToggleTheme: () => void;
-  examples: ExampleModel[];
   onNew: () => void;
   onLoadExample: (code: string) => void;
   onOpenLoad: () => void;
-  onExport: () => void;
+  onExportPNG: (transparent: boolean) => void;
+  onExportSVG: (transparent: boolean) => void;
   onAbout: () => void;
 }
 
@@ -61,30 +62,74 @@ function Menu({ label, items }: { label: string; items: MenuItem[] }) {
   );
 }
 
+/** Examples menu, grouped by field with section headers and a scrollable body. */
+function ExamplesMenu({ onLoadExample }: { onLoadExample: (code: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const groups = examplesByField();
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button className={menuBtn} onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        Examples
+      </button>
+      {open && (
+        <div className="absolute top-10 left-0 min-w-[244px] max-h-[360px] overflow-y-auto bg-panel border border-line rounded-[13px] shadow-panel p-1.5 z-50">
+          {groups.length === 0 ? (
+            <div className="px-2.5 py-2 text-[12px] text-faint">No examples available.</div>
+          ) : (
+            groups.map((group) => (
+              <div key={group.field}>
+                <div className="px-2.5 pt-2 pb-1 text-[10.5px] uppercase tracking-[0.6px] text-faint font-bold">
+                  {group.field}
+                </div>
+                {group.items.map((ex) => (
+                  <button
+                    key={ex.name}
+                    onClick={() => {
+                      setOpen(false);
+                      onLoadExample(ex.code);
+                    }}
+                    className="block w-full text-left border-none bg-transparent px-2.5 py-[7px] rounded-lg hover:bg-bg cursor-pointer transition-colors text-[13px] font-medium text-text"
+                  >
+                    {ex.name}
+                  </button>
+                ))}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Header({
   theme,
   onToggleTheme,
-  examples,
   onNew,
   onLoadExample,
   onOpenLoad,
-  onExport,
+  onExportPNG,
+  onExportSVG,
   onAbout,
 }: HeaderProps) {
+  const [exportOpen, setExportOpen] = useState(false);
+
   const modelItems: MenuItem[] = [
     { label: "New model", sub: "start from an empty canvas", onClick: onNew },
     { label: "Load model…", sub: "paste dagitty code", onClick: onOpenLoad },
-    { label: "Export…", sub: "download the diagram", onClick: onExport },
+    { label: "Export…", sub: "download the diagram", onClick: () => setExportOpen(true) },
   ];
-
-  const exampleItems: MenuItem[] =
-    examples.length > 0
-      ? examples.slice(0, 12).map((ex) => ({
-          label: ex.name,
-          sub: "built-in example",
-          onClick: () => onLoadExample(ex.code),
-        }))
-      : [{ label: "No examples available", sub: "the engine bundle is missing", onClick: () => {} }];
 
   const helpItems: MenuItem[] = [
     { label: "About DAGitty+", sub: "what this tool does", onClick: onAbout },
@@ -109,7 +154,7 @@ export default function Header({
 
       <nav className="hidden sm:flex items-center gap-0.5">
         <Menu label="Model" items={modelItems} />
-        <Menu label="Examples" items={exampleItems} />
+        <ExamplesMenu onLoadExample={onLoadExample} />
         <Menu label="Help" items={helpItems} />
       </nav>
 
@@ -124,13 +169,23 @@ export default function Header({
         {theme === "dark" ? <MoonIcon /> : <SunIcon />}
       </button>
 
-      <button
-        onClick={onExport}
-        className="flex items-center gap-[7px] h-[38px] px-4 rounded-[10px] border-none bg-accent text-white text-[13.5px] font-semibold cursor-pointer shadow-[0_2px_10px_-3px_var(--accent)] hover:brightness-110 transition"
-      >
-        <ExportIcon />
-        Export
-      </button>
+      <div className="relative">
+        <button
+          onClick={() => setExportOpen((o) => !o)}
+          aria-expanded={exportOpen}
+          className="flex items-center gap-[7px] h-[38px] px-4 rounded-[10px] border-none bg-accent text-white text-[13.5px] font-semibold cursor-pointer shadow-[0_2px_10px_-3px_var(--accent)] hover:brightness-110 transition"
+        >
+          <ExportIcon />
+          Export
+        </button>
+        {exportOpen && (
+          <ExportMenu
+            onExportPNG={onExportPNG}
+            onExportSVG={onExportSVG}
+            onClose={() => setExportOpen(false)}
+          />
+        )}
+      </div>
     </header>
   );
 }

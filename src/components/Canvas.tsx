@@ -1,25 +1,44 @@
-import { useCallback, useRef, useState } from "react";
-import { CANVAS, type DagEdge, type DagModel, type DagNode, type Role } from "../lib/dag";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { CANVAS, type DagEdge, type DagModel, type DagNode, type EdgeType, type Role } from "../lib/dag";
 import { type Tool } from "../lib/model-ops";
 import { HelpGlyphIcon } from "./icons";
+import ContextMenu, { type MenuEntry } from "./ContextMenu";
+import NodeToolbar from "./NodeToolbar";
+import EdgeToolbar from "./EdgeToolbar";
 
 const NODE_R = 25;
 const ADJ_R = 26;
 
+export interface SelectedEdge {
+  from: string;
+  to: string;
+}
+
 interface CanvasProps {
+  svgRef: RefObject<SVGSVGElement>;
   model: DagModel;
   tool: Tool;
   selectedId: string | null;
+  selectedEdge: SelectedEdge | null;
   acyclic: boolean;
   zoom: number;
   onZoomIn: () => void;
   onZoomOut: () => void;
   onZoomReset: () => void;
   onSelect: (id: string | null) => void;
+  onSelectEdge: (edge: SelectedEdge | null) => void;
   onMoveNode: (id: string, x: number, y: number) => void;
   onAddNodeAt: (x: number, y: number) => void;
   onAddEdge: (from: string, to: string) => void;
   onDeleteNode: (id: string) => void;
+  onToggleRole: (id: string, role: Role) => void;
+  onRename: (id: string) => void;
+  onDeleteEdge: (from: string, to: string) => void;
+  onReverseEdge: (from: string, to: string) => void;
+  onSetEdgeType: (from: string, to: string, type: EdgeType) => void;
+  onAutoLayout: () => void;
+  onFit: () => void;
+  onOpenLoad: () => void;
   onStartEmpty: () => void;
   onLoadExample: () => void;
 }
@@ -55,6 +74,11 @@ interface EdgeGeom {
   arrow: string;
   bidirected: boolean;
   backArrow: string;
+  /** Full center-to-center line for the hit target and midpoint. */
+  cx1: number;
+  cy1: number;
+  cx2: number;
+  cy2: number;
 }
 
 function edgeGeom(model: DagModel, e: DagEdge): EdgeGeom | null {
@@ -94,11 +118,15 @@ function edgeGeom(model: DagModel, e: DagEdge): EdgeGeom | null {
     arrow,
     bidirected: e.type === "bidirected",
     backArrow,
+    cx1: x1,
+    cy1: y1,
+    cx2: x2,
+    cy2: y2,
   };
 }
 
 const TOOL_HINT: Record<Tool, string> = {
-  select: "Click to select · drag to move",
+  select: "Click to select · double-click empty space to add · right-click for options",
   node: "Click the canvas to add a variable",
   edge: "Click a source, then a target",
   delete: "Click a variable to delete it",
@@ -106,84 +134,189 @@ const TOOL_HINT: Record<Tool, string> = {
   fit: "Click to select · drag to move",
 };
 
+type MenuTarget =
+  | { kind: "empty"; vx: number; vy: number }
+  | { kind: "node"; id: string }
+  | { kind: "edge"; from: string; to: string };
+
+/** Menu target plus its screen position (pixels, relative to the canvas box). */
+type Menu = MenuTarget & { sx: number; sy: number };
+
 export default function Canvas(props: CanvasProps) {
   const {
+    svgRef,
     model,
     tool,
     selectedId,
+    selectedEdge,
     acyclic,
     zoom,
     onZoomIn,
     onZoomOut,
     onZoomReset,
     onSelect,
+    onSelectEdge,
     onMoveNode,
     onAddNodeAt,
     onAddEdge,
     onDeleteNode,
+    onToggleRole,
+    onRename,
+    onDeleteEdge,
+    onReverseEdge,
+    onSetEdgeType,
+    onAutoLayout,
+    onFit,
+    onOpenLoad,
     onStartEmpty,
     onLoadExample,
   } = props;
 
-  const svgRef = useRef<SVGSVGElement>(null);
-  const dragRef = useRef<{ id: string; dx: number; dy: number } | null>(null);
+  const dragRef = useRef<{ id: string; dx: number; dy: number; moved: boolean } | null>(null);
   const [pendingEdge, setPendingEdge] = useState<string | null>(null);
   const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
+  const [menu, setMenu] = useState<Menu | null>(null);
+  // Bumped on scroll/resize so floating overlays recompute their screen positions.
+  const [, forceTick] = useState(0);
+
+  /** Geometry shared by toScreen/toViewBox: maps the canvas into the SVG box. */
+  const frame = useCallback(() => {
+    const svg = svgRef.current;
+    const rect = svg?.getBoundingClientRect();
+    const scale = rect ? Math.min(rect.width / CANVAS.width, rect.height / CANVAS.height) || 1 : 1;
+    const drawW = CANVAS.width * scale;
+    const drawH = CANVAS.height * scale;
+    return {
+      rect,
+      scale,
+      offX: rect ? (rect.width - drawW) / 2 : 0,
+      offY: rect ? (rect.height - drawH) / 2 : 0,
+    };
+  }, [svgRef]);
 
   /** Convert a client point to viewBox coords, undoing meet-fit and zoom. */
   const toViewBox = useCallback(
     (clientX: number, clientY: number): { x: number; y: number } => {
-      const svg = svgRef.current;
-      if (!svg) return { x: 0, y: 0 };
-      const rect = svg.getBoundingClientRect();
-      const scale = Math.min(rect.width / CANVAS.width, rect.height / CANVAS.height) || 1;
-      const drawW = CANVAS.width * scale;
-      const drawH = CANVAS.height * scale;
-      const offX = (rect.width - drawW) / 2;
-      const offY = (rect.height - drawH) / 2;
+      const { rect, scale, offX, offY } = frame();
+      if (!rect) return { x: 0, y: 0 };
       let vx = (clientX - rect.left - offX) / scale;
       let vy = (clientY - rect.top - offY) / scale;
-      // Undo the zoom transform (origin at canvas center).
       const cx = CANVAS.width / 2;
       const cy = CANVAS.height / 2;
       vx = cx + (vx - cx) / zoom;
       vy = cy + (vy - cy) / zoom;
       return { x: vx, y: vy };
     },
-    [zoom],
+    [frame, zoom],
+  );
+
+  /** Inverse of toViewBox: viewBox coords -> pixels relative to the SVG box top-left. */
+  const toScreen = useCallback(
+    (vx: number, vy: number): { x: number; y: number } => {
+      const { scale, offX, offY } = frame();
+      const cx = CANVAS.width / 2;
+      const cy = CANVAS.height / 2;
+      const zx = cx + (vx - cx) * zoom;
+      const zy = cy + (vy - cy) * zoom;
+      return { x: offX + zx * scale, y: offY + zy * scale };
+    },
+    [frame, zoom],
+  );
+
+  /** Screen-space radius of a node (for clearing the toolbar above it). */
+  const screenRadius = useCallback(
+    (n: DagNode) => nodeRadius(n) * frame().scale * zoom,
+    [frame, zoom],
+  );
+
+  // Reposition overlays and dismiss the context menu on scroll/resize.
+  useEffect(() => {
+    const onMove = () => {
+      setMenu(null);
+      forceTick((t) => t + 1);
+    };
+    window.addEventListener("resize", onMove);
+    window.addEventListener("scroll", onMove, true);
+    return () => {
+      window.removeEventListener("resize", onMove);
+      window.removeEventListener("scroll", onMove, true);
+    };
+  }, []);
+
+  // Esc cancels a pending edge / closes the menu (selection Esc lives in App).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (menu) setMenu(null);
+      if (pendingEdge !== null) {
+        setPendingEdge(null);
+        setCursor(null);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [menu, pendingEdge]);
+
+  const completeOrStartEdge = useCallback(
+    (id: string) => {
+      if (pendingEdge === null) {
+        setPendingEdge(id);
+        onSelect(id);
+      } else {
+        if (pendingEdge !== id) onAddEdge(pendingEdge, id);
+        setPendingEdge(null);
+        setCursor(null);
+      }
+    },
+    [pendingEdge, onAddEdge, onSelect],
   );
 
   const onNodeDown = (e: React.PointerEvent, n: DagNode) => {
+    if (e.button !== 0) return; // let right-click bubble to onContextMenu
     e.stopPropagation();
+    setMenu(null);
     if (tool === "delete") {
       onDeleteNode(n.id);
       return;
     }
-    if (tool === "edge") {
-      if (pendingEdge === null) {
-        setPendingEdge(n.id);
-        onSelect(n.id);
-      } else {
-        onAddEdge(pendingEdge, n.id);
-        setPendingEdge(null);
-        setCursor(null);
-      }
+    if (tool === "edge" || pendingEdge !== null) {
+      completeOrStartEdge(n.id);
       return;
     }
     // select / move
     onSelect(n.id);
     const p = toViewBox(e.clientX, e.clientY);
-    dragRef.current = { id: n.id, dx: p.x - n.x, dy: p.y - n.y };
+    dragRef.current = { id: n.id, dx: p.x - n.x, dy: p.y - n.y, moved: false };
     (e.target as Element).setPointerCapture?.(e.pointerId);
+  };
+
+  const onEdgeDown = (e: React.PointerEvent, edge: DagEdge) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    setMenu(null);
+    if (tool === "delete") {
+      onDeleteEdge(edge.from, edge.to);
+      return;
+    }
+    if (tool === "edge" || pendingEdge !== null) {
+      // Mid-edge clicks shouldn't hijack an in-progress connection.
+      if (pendingEdge !== null) {
+        setPendingEdge(null);
+        setCursor(null);
+      }
+      return;
+    }
+    onSelectEdge({ from: edge.from, to: edge.to });
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
     if (dragRef.current) {
       const p = toViewBox(e.clientX, e.clientY);
+      dragRef.current.moved = true;
       onMoveNode(dragRef.current.id, p.x - dragRef.current.dx, p.y - dragRef.current.dy);
       return;
     }
-    if (tool === "edge" && pendingEdge !== null) {
+    if (pendingEdge !== null) {
       setCursor(toViewBox(e.clientX, e.clientY));
     }
   };
@@ -193,25 +326,145 @@ export default function Canvas(props: CanvasProps) {
   };
 
   const onCanvasDown = (e: React.PointerEvent) => {
-    // Only fires for clicks on empty canvas (nodes stop propagation).
+    if (e.button !== 0) return;
+    // Only fires for clicks on empty canvas (nodes/edges stop propagation).
+    setMenu(null);
     if (tool === "node") {
       const p = toViewBox(e.clientX, e.clientY);
       onAddNodeAt(p.x, p.y);
       return;
     }
-    if (tool === "edge" && pendingEdge !== null) {
+    if (pendingEdge !== null) {
       setPendingEdge(null);
       setCursor(null);
       return;
     }
     onSelect(null);
+    onSelectEdge(null);
   };
+
+  const onCanvasDoubleClick = (e: React.MouseEvent) => {
+    // Double-click empty space adds a variable there immediately.
+    if (pendingEdge !== null) return;
+    const p = toViewBox(e.clientX, e.clientY);
+    onAddNodeAt(p.x, p.y);
+  };
+
+  const openMenu = (e: React.MouseEvent, target: MenuTarget) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const { rect } = frame();
+    const sx = rect ? e.clientX - rect.left : 0;
+    const sy = rect ? e.clientY - rect.top : 0;
+    setMenu({ ...target, sx, sy });
+  };
+
+  const onCanvasContextMenu = (e: React.MouseEvent) => {
+    const p = toViewBox(e.clientX, e.clientY);
+    openMenu(e, { kind: "empty", vx: p.x, vy: p.y });
+  };
+
+  const startEdgeFromToolbar = useCallback(
+    (id: string) => {
+      if (pendingEdge === id) {
+        setPendingEdge(null);
+        setCursor(null);
+      } else {
+        setPendingEdge(id);
+      }
+    },
+    [pendingEdge],
+  );
 
   const hasNodes = model.nodes.length > 0;
   const pendingNode = pendingEdge ? model.nodes.find((n) => n.id === pendingEdge) : null;
+  const selectedNode = selectedId ? model.nodes.find((n) => n.id === selectedId) ?? null : null;
+  const selectedEdgeObj =
+    selectedEdge &&
+    model.edges.find((e) => e.from === selectedEdge.from && e.to === selectedEdge.to);
 
   const cursorStyle =
-    tool === "node" ? "copy" : tool === "edge" ? "crosshair" : tool === "delete" ? "not-allowed" : "default";
+    tool === "node"
+      ? "copy"
+      : tool === "edge" || pendingEdge !== null
+        ? "crosshair"
+        : tool === "delete"
+          ? "not-allowed"
+          : "default";
+
+  // Build context-menu entries lazily from the open menu's target.
+  const menuEntries = (): MenuEntry[] => {
+    if (!menu) return [];
+    if (menu.kind === "empty") {
+      return [
+        { label: "Add variable here", onClick: () => onAddNodeAt(menu.vx, menu.vy) },
+        { label: "Auto-layout", onClick: onAutoLayout },
+        { label: "Fit to view", onClick: onFit },
+        { divider: true },
+        { label: "Load model…", onClick: onOpenLoad },
+      ];
+    }
+    if (menu.kind === "node") {
+      const n = model.nodes.find((x) => x.id === menu.id);
+      if (!n) return [];
+      const roleDot = (color: string) => (
+        <span className="w-2 h-2 rounded-full" style={{ background: color }} />
+      );
+      return [
+        {
+          label: "Exposure",
+          icon: roleDot("var(--exposure)"),
+          checked: !!n.roles.exposure,
+          onClick: () => onToggleRole(n.id, "exposure"),
+        },
+        {
+          label: "Outcome",
+          icon: roleDot("var(--outcome)"),
+          checked: !!n.roles.outcome,
+          onClick: () => onToggleRole(n.id, "outcome"),
+        },
+        {
+          label: "Adjusted",
+          icon: roleDot("var(--text)"),
+          checked: !!n.roles.adjusted,
+          onClick: () => onToggleRole(n.id, "adjusted"),
+        },
+        {
+          label: "Unobserved",
+          icon: roleDot("var(--faint)"),
+          checked: !!n.roles.latent,
+          onClick: () => onToggleRole(n.id, "latent"),
+        },
+        { divider: true },
+        { label: "Rename…", onClick: () => onRename(n.id) },
+        { label: "Delete variable", danger: true, onClick: () => onDeleteNode(n.id) },
+      ];
+    }
+    // edge
+    const e = model.edges.find((x) => x.from === menu.from && x.to === menu.to);
+    if (!e) return [];
+    return [
+      { label: "Reverse direction", onClick: () => onReverseEdge(e.from, e.to) },
+      e.type === "bidirected"
+        ? { label: "Make directed", onClick: () => onSetEdgeType(e.from, e.to, "directed") }
+        : { label: "Make bidirected", onClick: () => onSetEdgeType(e.from, e.to, "bidirected") },
+      { divider: true },
+      { label: "Delete edge", danger: true, onClick: () => onDeleteEdge(e.from, e.to) },
+    ];
+  };
+
+  // Floating toolbars only when nothing is being dragged/connected mid-stream.
+  const fr = frame();
+  const boundsW = fr.rect?.width ?? 0;
+  const boundsH = fr.rect?.height ?? 0;
+  const showNodeToolbar = selectedNode && tool === "select" && !menu;
+  const nodeToolbarPos = showNodeToolbar ? toScreen(selectedNode.x, selectedNode.y) : null;
+
+  let edgeMid: { x: number; y: number } | null = null;
+  if (selectedEdgeObj && tool === "select" && !menu) {
+    const g = edgeGeom(model, selectedEdgeObj);
+    if (g) edgeMid = toScreen((g.cx1 + g.cx2) / 2, (g.cy1 + g.cy2) / 2);
+  }
 
   return (
     <main className="flex-1 relative min-w-0 bg-canvas overflow-hidden">
@@ -238,8 +491,8 @@ export default function Canvas(props: CanvasProps) {
 
       {/* tool hint */}
       {hasNodes && (
-        <div className="absolute top-4 right-4 z-[5] max-w-[230px] px-[13px] py-1.5 bg-accent-ghost border border-accent rounded-full text-accent text-[12px] font-semibold text-center">
-          {TOOL_HINT[tool]}
+        <div className="absolute top-4 right-4 z-[5] max-w-[280px] px-[13px] py-1.5 bg-accent-ghost border border-accent rounded-full text-accent text-[12px] font-semibold text-center">
+          {pendingEdge !== null ? "Click a target node to connect · Esc to cancel" : TOOL_HINT[tool]}
         </div>
       )}
 
@@ -249,29 +502,65 @@ export default function Canvas(props: CanvasProps) {
         preserveAspectRatio="xMidYMid meet"
         className="absolute inset-0 w-full h-full"
         style={{ cursor: cursorStyle, touchAction: "none" }}
-        onPointerDown={onCanvasDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
         onPointerLeave={endDrag}
       >
+        {/*
+          Full-canvas hit target for empty-space interactions. Using a real
+          element (rather than the <svg> root) keeps React's delegated
+          onContextMenu / onDoubleClick reliable; nodes and edges render on top
+          and stop propagation, so they take precedence where present.
+        */}
+        <rect
+          x={0}
+          y={0}
+          width={CANVAS.width}
+          height={CANVAS.height}
+          fill="transparent"
+          onPointerDown={onCanvasDown}
+          onDoubleClick={onCanvasDoubleClick}
+          onContextMenu={onCanvasContextMenu}
+        />
         <g style={{ transform: `scale(${zoom})`, transformOrigin: "380px 240px" }}>
           {/* edges */}
           {model.edges.map((e) => {
             const g = edgeGeom(model, e);
             if (!g) return null;
+            const isSel =
+              selectedEdge && selectedEdge.from === e.from && selectedEdge.to === e.to;
             return (
-              <g key={g.key}>
+              <g
+                key={g.key}
+                onPointerDown={(ev) => onEdgeDown(ev, e)}
+                onContextMenu={(ev) => openMenu(ev, { kind: "edge", from: e.from, to: e.to })}
+                style={{ cursor: tool === "select" ? "pointer" : cursorStyle }}
+              >
+                {/* transparent thick hit target */}
+                <line
+                  x1={g.cx1}
+                  y1={g.cy1}
+                  x2={g.cx2}
+                  y2={g.cy2}
+                  stroke="transparent"
+                  strokeWidth={14}
+                  strokeLinecap="round"
+                  style={{ pointerEvents: "stroke" }}
+                />
                 <line
                   x1={g.x1}
                   y1={g.y1}
                   x2={g.x2}
                   y2={g.y2}
-                  stroke="var(--neutral)"
-                  strokeWidth={2}
+                  stroke={isSel ? "var(--accent)" : "var(--neutral)"}
+                  strokeWidth={isSel ? 2.8 : 2}
                   strokeLinecap="round"
+                  style={{ pointerEvents: "none" }}
                 />
-                <polygon points={g.arrow} fill="var(--neutral)" />
-                {g.bidirected && <polygon points={g.backArrow} fill="var(--neutral)" />}
+                <polygon points={g.arrow} fill={isSel ? "var(--accent)" : "var(--neutral)"} style={{ pointerEvents: "none" }} />
+                {g.bidirected && (
+                  <polygon points={g.backArrow} fill={isSel ? "var(--accent)" : "var(--neutral)"} style={{ pointerEvents: "none" }} />
+                )}
               </g>
             );
           })}
@@ -298,6 +587,7 @@ export default function Canvas(props: CanvasProps) {
             const r = nodeRadius(n);
             const selected = n.id === selectedId;
             const isSquare = role === "adjusted";
+            const isPending = n.id === pendingEdge;
             const fill =
               role === "exposure"
                 ? "var(--exposure)"
@@ -333,9 +623,10 @@ export default function Canvas(props: CanvasProps) {
               <g
                 key={n.id}
                 onPointerDown={(e) => onNodeDown(e, n)}
+                onContextMenu={(e) => openMenu(e, { kind: "node", id: n.id })}
                 style={{ cursor: tool === "select" ? "grab" : cursorStyle }}
               >
-                {selected && (
+                {(selected || isPending) && (
                   <rect
                     x={n.x - r - 7}
                     y={n.y - r - 7}
@@ -405,6 +696,52 @@ export default function Canvas(props: CanvasProps) {
           })}
         </g>
       </svg>
+
+      {/* floating node toolbar */}
+      {showNodeToolbar && selectedNode && nodeToolbarPos && (
+        <NodeToolbar
+          node={selectedNode}
+          x={nodeToolbarPos.x}
+          y={nodeToolbarPos.y}
+          screenR={screenRadius(selectedNode)}
+          boundsW={boundsW}
+          drawing={pendingEdge === selectedNode.id}
+          onToggleRole={onToggleRole}
+          onStartEdge={startEdgeFromToolbar}
+          onRename={onRename}
+          onDelete={onDeleteNode}
+        />
+      )}
+
+      {/* floating edge toolbar */}
+      {edgeMid && selectedEdgeObj && (
+        <EdgeToolbar
+          x={edgeMid.x}
+          y={edgeMid.y}
+          type={selectedEdgeObj.type}
+          onReverse={() => onReverseEdge(selectedEdgeObj.from, selectedEdgeObj.to)}
+          onToggleType={() =>
+            onSetEdgeType(
+              selectedEdgeObj.from,
+              selectedEdgeObj.to,
+              selectedEdgeObj.type === "bidirected" ? "directed" : "bidirected",
+            )
+          }
+          onDelete={() => onDeleteEdge(selectedEdgeObj.from, selectedEdgeObj.to)}
+        />
+      )}
+
+      {/* context menu */}
+      {menu && (
+        <ContextMenu
+          x={menu.sx}
+          y={menu.sy}
+          boundsW={boundsW}
+          boundsH={boundsH}
+          entries={menuEntries()}
+          onClose={() => setMenu(null)}
+        />
+      )}
 
       {/* empty state */}
       {!hasNodes && (

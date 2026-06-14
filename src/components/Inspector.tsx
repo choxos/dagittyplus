@@ -179,16 +179,19 @@ function RoleBadge({ node }: { node: DagNode }) {
   const isAdj = node.roles.adjusted;
   const bg = isExp ? "var(--exposure)" : isOut ? "var(--outcome)" : "var(--panel)";
   const color = isExp || isOut ? "#fff" : "var(--text)";
-  const border = isAdj ? "2.4px solid var(--text)" : isExp || isOut ? "none" : "1.5px solid var(--line)";
+  const borderWidth = isAdj ? "2.4px" : isExp || isOut ? "0" : "1.5px";
+  const borderColor = isAdj ? "var(--text)" : "var(--line)";
+  const borderStyle = node.roles.latent ? "dashed" : "solid";
   return (
     <span
       className="flex-none w-[42px] h-[42px] flex items-center justify-center font-sans font-bold text-[16px]"
       style={{
         background: bg,
         color,
-        border,
+        borderWidth,
+        borderColor,
+        borderStyle,
         borderRadius: isAdj ? "9px" : "50%",
-        borderStyle: node.roles.latent ? "dashed" : "solid",
       }}
     >
       {node.id}
