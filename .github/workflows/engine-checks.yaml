@@ -1,7 +1,8 @@
 # Cross-surface checks. The vendored DAGitty engine must be byte-identical across
 # the R package (inst/js), the bundled Shiny editor (inst/shiny-apps/.../www), and
-# the web app (public/ on the webapp branch), and the low-level JavaScript engine
-# tests must pass.
+# the web app (public/ on the webapp branch); the bundled Shiny editor must be the
+# current webapp build (not just the same engine); and the low-level JavaScript
+# engine tests must pass.
 on:
   push:
     branches: [main, master]
@@ -45,6 +46,44 @@ jobs:
             done
           done
           exit $fail
+
+  shiny-bundle-parity:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the R package (master)
+        uses: actions/checkout@v4
+        with:
+          path: pkg
+
+      - name: Check out the web app (webapp branch)
+        uses: actions/checkout@v4
+        with:
+          ref: webapp
+          path: web
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # The Shiny bundle is the web app built with relative asset paths so it can
+      # be served from addResourcePath(). Vite's content hashes are deterministic,
+      # so a fresh build must match the committed bundle byte for byte.
+      - name: Build the editor with relative asset paths
+        working-directory: web
+        run: |
+          npm ci
+          npx vite build --base=./
+
+      - name: Compare the fresh build against the bundled Shiny editor
+        run: |
+          if diff -qr web/dist pkg/inst/shiny-apps/DagittyPlus/www; then
+            echo "ok: the bundled Shiny editor matches the latest webapp build"
+          else
+            echo "DRIFT: inst/shiny-apps/DagittyPlus/www is stale."
+            echo "Rebuild it from the webapp branch with 'npx vite build --base=./'"
+            echo "and copy dist/ into inst/shiny-apps/DagittyPlus/www/."
+            exit 1
+          fi
 
   js-engine-tests:
     runs-on: ubuntu-latest
