@@ -111,6 +111,16 @@ DAGitty.GraphGenerator   DAGitty.MPoly</code></pre>
 <span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="ex">npm</span> test           <span class="co"># engine-parity smoke test</span></span>
 <span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="ex">npm</span> run build      <span class="co"># production bundle for GitHub Pages /app/</span></span></code></pre></div>
 </div>
+<div class="section level2">
+<h2 id="refreshing-the-bundled-shiny-editor">Refreshing the bundled Shiny editor<a class="anchor" aria-label="anchor" href="#refreshing-the-bundled-shiny-editor"></a></h2>
+<p>The Shiny app serves the web editor offline from <code>inst/shiny-apps/DagittyPlus/www</code>. That directory is a relative-base build of the web app. To refresh it after the <code>webapp</code> branch changes, build the app with a relative base and copy the output in:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="co"># on the webapp branch</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="ex">npx</span> vite build <span class="at">--base</span><span class="op">=</span>./</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="co"># then, on master</span></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="fu">rm</span> <span class="at">-rf</span> inst/shiny-apps/DagittyPlus/www</span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="fu">cp</span> <span class="at">-r</span> <span class="op">&lt;</span>webapp<span class="op">&gt;</span>/dist/<span class="pp">*</span> inst/shiny-apps/DagittyPlus/www/</span></code></pre></div>
+<p>The <code>engine-checks</code> workflow fails if <code>dagitty-alg.js</code> / <code>example-dags.js</code> drift between <code>inst/js</code>, this bundled <code>www</code>, and the web app’s <code>public/</code>.</p>
+</div>
 </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

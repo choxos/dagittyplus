@@ -33,6 +33,10 @@ adjustedNodes(x)
 
 adjustedNodes(x) <- value
 
+selectedNodes(x)
+
+selectedNodes(x) <- value
+
 setVariableStatus(x, status, value)
 ```
 
@@ -48,7 +52,8 @@ setVariableStatus(x, status, value)
 
 - status:
 
-  character, one of "exposure", "outcome" or "latent".
+  character, one of "exposure", "outcome", "latent", "adjustedNode", or
+  "selected".
 
 ## Details
 

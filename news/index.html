@@ -47,6 +47,11 @@
 <ol start="18" style="list-style-type: upper-alpha"><li>
 </li></ol></li>
 <li>Added a vignette, “Plotting dagittyplus models with ggdag”, documenting how the preserved <code>dagitty</code> S3 class lets the <code>ggdag</code> package plot dagittyplus models directly.</li>
+<li>Added the selection-node role to the R API: <code><a href="../reference/VariableStatus.html">selectedNodes()</a></code>, <code>selectedNodes&lt;-</code>, and <code>setVariableStatus(..., "selected")</code>, for parity with the web app and the JavaScript engine.</li>
+<li>
+<code><a href="../reference/downloadGraph.html">downloadGraph()</a></code> now uses HTTPS, validates and URL-encodes the graph id, and fails clearly on an invalid id, an empty response, or a timeout.</li>
+<li>The bundled Shiny app serves the web editor locally (offline, version locked to the installed package) instead of embedding the deployed site, and points to copying the model code into the Analyze tab.</li>
+<li>Added cross-surface CI: an engine-parity check (the vendored DAGitty engine is byte-identical across the R package, the bundled Shiny editor, and the web app) and the JavaScript engine QUnit suite.</li>
 </ul></div>
   </main></div>
 

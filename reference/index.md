@@ -31,6 +31,8 @@
   [`` `latents<-`() ``](https://choxos.github.io/dagittyplus/reference/VariableStatus.md)
   [`adjustedNodes()`](https://choxos.github.io/dagittyplus/reference/VariableStatus.md)
   [`` `adjustedNodes<-`() ``](https://choxos.github.io/dagittyplus/reference/VariableStatus.md)
+  [`selectedNodes()`](https://choxos.github.io/dagittyplus/reference/VariableStatus.md)
+  [`` `selectedNodes<-`() ``](https://choxos.github.io/dagittyplus/reference/VariableStatus.md)
   [`setVariableStatus()`](https://choxos.github.io/dagittyplus/reference/VariableStatus.md)
   : Variable Statuses
 - [`coordinates()`](https://choxos.github.io/dagittyplus/reference/coordinates.md)

@@ -90,3 +90,22 @@ npm run typecheck
 npm test           # engine-parity smoke test
 npm run build      # production bundle for GitHub Pages /app/
 ```
+
+## Refreshing the bundled Shiny editor
+
+The Shiny app serves the web editor offline from
+`inst/shiny-apps/DagittyPlus/www`. That directory is a relative-base
+build of the web app. To refresh it after the `webapp` branch changes,
+build the app with a relative base and copy the output in:
+
+``` sh
+# on the webapp branch
+npx vite build --base=./
+# then, on master
+rm -rf inst/shiny-apps/DagittyPlus/www
+cp -r <webapp>/dist/* inst/shiny-apps/DagittyPlus/www/
+```
+
+The `engine-checks` workflow fails if `dagitty-alg.js` /
+`example-dags.js` drift between `inst/js`, this bundled `www`, and the
+web app’s `public/`.
