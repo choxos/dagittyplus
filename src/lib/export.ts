@@ -55,7 +55,25 @@ function contentBox(svg: SVGSVGElement): Box {
   return { x: 0, y: 0, width: CANVAS.width, height: CANVAS.height };
 }
 
-function buildSVGMarkup(svg: SVGSVGElement, transparent: boolean): { markup: string } & Box {
+/**
+ * The exported background. `"transparent"` omits the fill; `"theme"` uses the
+ * current canvas color (light or dark); any other value is used as a CSS color
+ * (a hex string from the picker, or `"#ffffff"` / `"#000000"`).
+ */
+export type ExportBackground = "transparent" | "theme" | string;
+
+/** Resolve a background choice to a concrete color, or null for transparent. */
+function resolveBackground(background: ExportBackground): string | null {
+  if (background === "transparent") return null;
+  if (background === "theme") {
+    return (
+      getComputedStyle(document.documentElement).getPropertyValue("--canvas").trim() || "#ffffff"
+    );
+  }
+  return background;
+}
+
+function buildSVGMarkup(svg: SVGSVGElement, background: ExportBackground): { markup: string } & Box {
   const box = contentBox(svg);
   const clone = svg.cloneNode(true) as SVGSVGElement;
 
@@ -72,10 +90,9 @@ function buildSVGMarkup(svg: SVGSVGElement, transparent: boolean): { markup: str
 
   let serialized = new XMLSerializer().serializeToString(clone);
 
-  if (!transparent) {
-    const canvasColor =
-      getComputedStyle(document.documentElement).getPropertyValue("--canvas").trim() || "#ffffff";
-    const bg = `<rect x="${box.x}" y="${box.y}" width="${box.width}" height="${box.height}" fill="${canvasColor}"/>`;
+  const fill = resolveBackground(background);
+  if (fill) {
+    const bg = `<rect x="${box.x}" y="${box.y}" width="${box.width}" height="${box.height}" fill="${fill}"/>`;
     serialized = serialized.replace(/(<svg[^>]*>)/, `$1${bg}`);
   }
 
@@ -91,8 +108,62 @@ function triggerDownload(url: string, filename: string): void {
   a.remove();
 }
 
-export function exportSVG(svg: SVGSVGElement, filename = "dag.svg", transparent = false): void {
-  const { markup } = buildSVGMarkup(svg, transparent);
+// CSS reference pixels are 96 per inch, so a DPI maps to that many raster pixels
+// per logical unit.
+const CSS_DPI = 96;
+/** The default raster resolution for PNG export (print quality). */
+export const DEFAULT_DPI = 300;
+
+function crc32(bytes: Uint8Array): number {
+  let crc = 0xffffffff;
+  for (let i = 0; i < bytes.length; i += 1) {
+    crc ^= bytes[i];
+    for (let j = 0; j < 8; j += 1) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+/**
+ * Insert a PNG `pHYs` chunk so the file's metadata reports the intended DPI
+ * (canvas.toBlob alone only sets the pixel count). Resolution is recorded in
+ * pixels per meter; image viewers and word processors then show "300 DPI" and
+ * the correct physical size.
+ */
+function withDpiMetadata(png: Uint8Array, dpi: number): Uint8Array {
+  const ppm = Math.round(dpi / 0.0254); // pixels per metre
+  const SIG = 8; // PNG signature length; IHDR chunk follows immediately
+  const view = new DataView(png.buffer, png.byteOffset, png.byteLength);
+  const ihdrLen = view.getUint32(SIG);
+  const insertAt = SIG + 4 + 4 + ihdrLen + 4; // end of the IHDR chunk
+
+  const chunk = new Uint8Array(4 + 4 + 9 + 4); // length + type + data + crc
+  const cv = new DataView(chunk.buffer);
+  cv.setUint32(0, 9);
+  chunk.set([0x70, 0x48, 0x59, 0x73], 4); // "pHYs"
+  cv.setUint32(8, ppm); // pixels per unit, X
+  cv.setUint32(12, ppm); // pixels per unit, Y
+  chunk[16] = 1; // unit = metre
+  cv.setUint32(17, crc32(chunk.subarray(4, 17)));
+
+  const out = new Uint8Array(png.length + chunk.length);
+  out.set(png.subarray(0, insertAt), 0);
+  out.set(chunk, insertAt);
+  out.set(png.subarray(insertAt), insertAt + chunk.length);
+  return out;
+}
+
+export interface SvgExportOptions {
+  background?: ExportBackground;
+}
+
+export interface PngExportOptions {
+  background?: ExportBackground;
+  /** Raster resolution in dots per inch. Defaults to 300. */
+  dpi?: number;
+}
+
+export function exportSVG(svg: SVGSVGElement, filename = "dag.svg", options: SvgExportOptions = {}): void {
+  const { markup } = buildSVGMarkup(svg, options.background ?? "theme");
   const blob = new Blob([markup], { type: "image/svg+xml;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   triggerDownload(url, filename);
@@ -102,18 +173,19 @@ export function exportSVG(svg: SVGSVGElement, filename = "dag.svg", transparent 
 export function exportPNG(
   svg: SVGSVGElement,
   filename = "dag.png",
-  scale = 2,
-  transparent = false,
+  options: PngExportOptions = {},
 ): Promise<void> {
-  const { markup, width, height } = buildSVGMarkup(svg, transparent);
+  const dpi = options.dpi ?? DEFAULT_DPI;
+  const scale = dpi / CSS_DPI;
+  const { markup, width, height } = buildSVGMarkup(svg, options.background ?? "theme");
   const src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(markup);
 
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement("canvas");
-      canvas.width = width * scale;
-      canvas.height = height * scale;
+      canvas.width = Math.round(width * scale);
+      canvas.height = Math.round(height * scale);
       const ctx = canvas.getContext("2d");
       if (!ctx) {
         reject(new Error("Could not get a 2D drawing context."));
@@ -126,10 +198,18 @@ export function exportPNG(
           reject(new Error("Could not encode the PNG."));
           return;
         }
-        const url = URL.createObjectURL(blob);
-        triggerDownload(url, filename);
-        setTimeout(() => URL.revokeObjectURL(url), 1500);
-        resolve();
+        blob
+          .arrayBuffer()
+          .then((buf) => {
+            const tagged = withDpiMetadata(new Uint8Array(buf), dpi);
+            const url = URL.createObjectURL(
+              new Blob([tagged.buffer as ArrayBuffer], { type: "image/png" }),
+            );
+            triggerDownload(url, filename);
+            setTimeout(() => URL.revokeObjectURL(url), 1500);
+            resolve();
+          })
+          .catch(reject);
       }, "image/png");
     };
     img.onerror = () => reject(new Error("Could not render the diagram for export."));
