@@ -31,6 +31,11 @@ export interface DagModel {
 
 export const CANVAS = { width: 760, height: 480, pad: 70 };
 
+// Node-label font size at 100% (canvas units). The diagram-size control is
+// expressed in terms of this: the whole diagram scales so the label reads at the
+// chosen pixel size, and exports carry the same size.
+export const BASE_FONT_PX = 17;
+
 const ROLE_KEYWORD: Record<Role, string> = {
   exposure: "exposure",
   outcome: "outcome",

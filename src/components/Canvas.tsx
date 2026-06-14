@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
-import { CANVAS, type DagEdge, type DagModel, type DagNode, type EdgeType, type Role } from "../lib/dag";
+import {
+  BASE_FONT_PX,
+  CANVAS,
+  type DagEdge,
+  type DagModel,
+  type DagNode,
+  type EdgeType,
+  type Role,
+} from "../lib/dag";
 import { type Tool } from "../lib/model-ops";
 import { HelpGlyphIcon } from "./icons";
 import ContextMenu, { type MenuEntry } from "./ContextMenu";
@@ -752,7 +760,7 @@ export default function Canvas(props: CanvasProps) {
                   y={n.y}
                   textAnchor="middle"
                   dominantBaseline="central"
-                  fontSize={17}
+                  fontSize={BASE_FONT_PX}
                   fontWeight={700}
                   fill={textFill}
                   style={{ pointerEvents: "none", fontFamily: "Inter, sans-serif" }}
@@ -900,31 +908,31 @@ export default function Canvas(props: CanvasProps) {
         </div>
       )}
 
-      {/* diagram size control (also sets the exported file size) */}
+      {/* font-size control (also sets the exported file size) */}
       <div
         className="absolute right-4 bottom-4 z-[5] flex flex-col bg-panel border border-line rounded-[12px] shadow-panel overflow-hidden"
-        title="Diagram size — also sets the exported image size"
+        title="Label font size — also sets the exported image size"
       >
         <button
           onClick={onZoomIn}
-          aria-label="Increase diagram size"
+          aria-label="Increase font size"
           className="w-[38px] h-[38px] border-none bg-transparent text-text text-[18px] cursor-pointer border-b border-line hover:bg-bg transition-colors"
         >
           +
         </button>
         <button
           onClick={onZoomOut}
-          aria-label="Decrease diagram size"
+          aria-label="Decrease font size"
           className="w-[38px] h-[38px] border-none bg-transparent text-text text-[18px] cursor-pointer border-b border-line hover:bg-bg transition-colors"
         >
           −
         </button>
         <button
           onClick={onZoomReset}
-          aria-label="Reset diagram size to 100%"
-          className="w-[38px] h-[38px] border-none bg-transparent text-dim text-[11px] font-semibold cursor-pointer hover:bg-bg transition-colors"
+          aria-label="Reset font size"
+          className="w-[38px] h-[38px] border-none bg-transparent text-dim text-[10px] font-semibold cursor-pointer hover:bg-bg transition-colors"
         >
-          {Math.round(zoom * 100)}%
+          {Math.round(BASE_FONT_PX * zoom)}px
         </button>
       </div>
     </main>
