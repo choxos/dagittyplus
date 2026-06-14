@@ -1,7 +1,7 @@
 // Pure helpers that produce a NEW DagModel from an old one. App holds the model
 // in state and replaces it with these results; components stay presentational.
 
-import { CANVAS, type DagModel, type DagNode, type Role } from "./dag";
+import { CANVAS, type DagModel, type DagNode, type EdgeType, type Role } from "./dag";
 
 export type Tool = "select" | "node" | "edge" | "delete" | "layout" | "fit";
 export type Tab = "inspect" | "identify" | "implications" | "code";
@@ -67,6 +67,36 @@ export function addEdge(model: DagModel, from: string, to: string): DagModel {
   );
   if (exists) return model; // ignore duplicates and reverse-duplicates
   return { nodes: model.nodes, edges: [...model.edges, { from, to, type: "directed" }] };
+}
+
+export function deleteEdge(model: DagModel, from: string, to: string): DagModel {
+  return {
+    nodes: model.nodes,
+    edges: model.edges.filter((e) => !(e.from === from && e.to === to)),
+  };
+}
+
+/** Flip an edge's direction, unless that would duplicate an existing edge. */
+export function reverseEdge(model: DagModel, from: string, to: string): DagModel {
+  if (model.edges.some((e) => e.from === to && e.to === from)) return model;
+  return {
+    nodes: model.nodes,
+    edges: model.edges.map((e) =>
+      e.from === from && e.to === to ? { from: to, to: from, type: e.type } : e,
+    ),
+  };
+}
+
+export function setEdgeType(
+  model: DagModel,
+  from: string,
+  to: string,
+  type: EdgeType,
+): DagModel {
+  return {
+    nodes: model.nodes,
+    edges: model.edges.map((e) => (e.from === from && e.to === to ? { ...e, type } : e)),
+  };
 }
 
 /** Exposure and outcome are mutually exclusive; toggling one clears the other. */

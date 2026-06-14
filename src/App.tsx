@@ -6,23 +6,28 @@ import {
   parse,
   serialize,
   type DagModel,
+  type EdgeType,
   type Role,
 } from "./lib/dag";
 import { loadExamples } from "./lib/examples";
+import { exportPNG, exportSVG } from "./lib/export";
 import {
   addEdge,
   addNode,
   autoLayout,
+  deleteEdge,
   moveNode,
   removeNode,
   renameNode,
+  reverseEdge,
+  setEdgeType,
   toggleRole,
   type Tab,
   type Tool,
 } from "./lib/model-ops";
 import Header from "./components/Header";
 import ToolRail from "./components/ToolRail";
-import Canvas from "./components/Canvas";
+import Canvas, { type SelectedEdge } from "./components/Canvas";
 import Inspector, { type Estimand } from "./components/Inspector";
 import Footer from "./components/Footer";
 import Modal from "./components/Modal";
@@ -48,6 +53,7 @@ export default function App() {
   const [tool, setTool] = useState<Tool>("select");
   const [tab, setTab] = useState<Tab>("inspect");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedEdge, setSelectedEdge] = useState<SelectedEdge | null>(null);
   const [zoom, setZoom] = useState(1);
   const [estimand, setEstimand] = useState<Estimand>("total");
 
@@ -59,7 +65,9 @@ export default function App() {
   const [modal, setModal] = useState<null | "load" | "about">(null);
   const [loadDraft, setLoadDraft] = useState("");
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
+  const svgRef = useRef<SVGSVGElement>(null);
   const examples = useMemo(() => loadExamples(), []);
 
   // Serialize once, analyze once; everything downstream reads from these.
@@ -76,10 +84,31 @@ export default function App() {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
+  // Auto-dismiss the toast.
+  useEffect(() => {
+    if (!toast) return;
+    const id = window.setTimeout(() => setToast(null), 3200);
+    return () => window.clearTimeout(id);
+  }, [toast]);
+
   const selected = useMemo(
     () => model.nodes.find((n) => n.id === selectedId) ?? null,
     [model, selectedId],
   );
+
+  /* -------------------------------------------------------------- selection */
+
+  // Selecting a node (or clearing) drops any edge selection.
+  const selectNode = useCallback((id: string | null) => {
+    setSelectedId(id);
+    setSelectedEdge(null);
+  }, []);
+
+  // Selecting an edge drops the node selection so only one toolbar shows.
+  const selectEdge = useCallback((edge: SelectedEdge | null) => {
+    setSelectedEdge(edge);
+    if (edge) setSelectedId(null);
+  }, []);
 
   /* ----------------------------------------------------------- model edits */
 
@@ -87,25 +116,29 @@ export default function App() {
     setModel(next);
     setCodeDirty(false);
     setCodeError(null);
-    if (!keepSelection) setSelectedId(null);
+    if (!keepSelection) {
+      setSelectedId(null);
+      setSelectedEdge(null);
+    }
   }, []);
 
-  const handleAddNodeAt = useCallback(
-    (x: number, y: number) => {
-      setModel((m) => {
-        const before = new Set(m.nodes.map((n) => n.id));
-        const next = addNode(m, x, y);
-        const created = next.nodes.find((n) => !before.has(n.id));
-        if (created) setSelectedId(created.id);
-        return next;
-      });
-    },
-    [],
-  );
+  const handleAddNodeAt = useCallback((x: number, y: number) => {
+    setModel((m) => {
+      const before = new Set(m.nodes.map((n) => n.id));
+      const next = addNode(m, x, y);
+      const created = next.nodes.find((n) => !before.has(n.id));
+      if (created) {
+        setSelectedId(created.id);
+        setSelectedEdge(null);
+      }
+      return next;
+    });
+  }, []);
 
   const handleDeleteNode = useCallback((id: string) => {
     setModel((m) => removeNode(m, id));
     setSelectedId((cur) => (cur === id ? null : cur));
+    setSelectedEdge((cur) => (cur && (cur.from === id || cur.to === id) ? null : cur));
   }, []);
 
   const handleToggleRole = useCallback((id: string, role: Role) => {
@@ -127,6 +160,27 @@ export default function App() {
     },
     [model],
   );
+
+  const handleAddEdge = useCallback((from: string, to: string) => {
+    setModel((m) => addEdge(m, from, to));
+  }, []);
+
+  const handleDeleteEdge = useCallback((from: string, to: string) => {
+    setModel((m) => deleteEdge(m, from, to));
+    setSelectedEdge((cur) => (cur && cur.from === from && cur.to === to ? null : cur));
+  }, []);
+
+  const handleReverseEdge = useCallback((from: string, to: string) => {
+    setModel((m) => reverseEdge(m, from, to));
+    // After a flip the selected edge points the other way; track it.
+    setSelectedEdge((cur) =>
+      cur && cur.from === from && cur.to === to ? { from: to, to: from } : cur,
+    );
+  }, []);
+
+  const handleSetEdgeType = useCallback((from: string, to: string, type: EdgeType) => {
+    setModel((m) => setEdgeType(m, from, to, type));
+  }, []);
 
   /* ----------------------------------------------------------- code / load */
 
@@ -187,10 +241,38 @@ export default function App() {
 
   const newModel = useCallback(() => replaceModel({ nodes: [], edges: [] }, false), [replaceModel]);
 
+  const openLoad = useCallback(() => {
+    setLoadDraft(code);
+    setLoadError(null);
+    setModal("load");
+  }, [code]);
+
   const firstExampleOrStarter = useCallback(() => {
     if (examples.length > 0) loadExampleCode(examples[0].code);
     else loadExampleCode(serialize(exampleModel()));
   }, [examples, loadExampleCode]);
+
+  /* ----------------------------------------------------------------- export */
+
+  const doExportPNG = useCallback((transparent: boolean) => {
+    const svg = svgRef.current;
+    if (!svg) {
+      setToast("Nothing to export yet.");
+      return;
+    }
+    exportPNG(svg, "dag.png", 2, transparent).catch(() => {
+      setToast("Could not export the PNG. Try the SVG option instead.");
+    });
+  }, []);
+
+  const doExportSVG = useCallback((transparent: boolean) => {
+    const svg = svgRef.current;
+    if (!svg) {
+      setToast("Nothing to export yet.");
+      return;
+    }
+    exportSVG(svg, "dag.svg", transparent);
+  }, []);
 
   /* -------------------------------------------------------------- zoom etc */
 
@@ -203,10 +285,12 @@ export default function App() {
     handleAddNodeAt(CANVAS.width / 2, CANVAS.height / 2);
   }, [handleAddNodeAt]);
 
+  const handleAutoLayout = useCallback(() => setModel((m) => autoLayout(m)), []);
+
   /* ------------------------------------------------------------- keyboard */
 
-  const stateRef = useRef({ selectedId, modal });
-  stateRef.current = { selectedId, modal };
+  const stateRef = useRef({ selectedId, selectedEdge, modal });
+  stateRef.current = { selectedId, selectedEdge, modal };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -218,11 +302,15 @@ export default function App() {
           target.tagName === "SELECT" ||
           target.isContentEditable);
       if (typing) return;
-      const { selectedId: sel, modal: openModal } = stateRef.current;
+      const { selectedId: sel, selectedEdge: selEdge, modal: openModal } = stateRef.current;
 
       if (e.key === "Escape") {
+        // Canvas handles cancelling a pending edge / closing its menu itself.
         if (openModal) setModal(null);
-        else setSelectedId(null);
+        else {
+          setSelectedId(null);
+          setSelectedEdge(null);
+        }
         return;
       }
       if (openModal) return;
@@ -233,12 +321,21 @@ export default function App() {
       if (k === "n") return setTool("node");
       if (k === "c") return setTool("edge");
 
-      if (!sel) return;
       if (e.key === "Delete" || e.key === "Backspace") {
-        e.preventDefault();
-        handleDeleteNode(sel);
+        if (selEdge) {
+          e.preventDefault();
+          handleDeleteEdge(selEdge.from, selEdge.to);
+          return;
+        }
+        if (sel) {
+          e.preventDefault();
+          handleDeleteNode(sel);
+          return;
+        }
         return;
       }
+
+      if (!sel) return;
       const roleKey: Record<string, Role> = { e: "exposure", o: "outcome", a: "adjusted", u: "latent" };
       if (roleKey[k]) {
         e.preventDefault();
@@ -247,7 +344,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [handleDeleteNode, handleToggleRole]);
+  }, [handleDeleteNode, handleDeleteEdge, handleToggleRole]);
 
   /* ---------------------------------------------------------------- render */
 
@@ -256,15 +353,11 @@ export default function App() {
       <Header
         theme={theme}
         onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
-        examples={examples}
         onNew={newModel}
         onLoadExample={loadExampleCode}
-        onOpenLoad={() => {
-          setLoadDraft(code);
-          setLoadError(null);
-          setModal("load");
-        }}
-        onExport={() => setModal("about")}
+        onOpenLoad={openLoad}
+        onExportPNG={doExportPNG}
+        onExportSVG={doExportSVG}
         onAbout={() => setModal("about")}
       />
 
@@ -272,24 +365,35 @@ export default function App() {
         <ToolRail
           tool={tool}
           onSelectTool={setTool}
-          onAutoLayout={() => setModel((m) => autoLayout(m))}
+          onAutoLayout={handleAutoLayout}
           onFit={zoomReset}
           onHelp={() => setModal("about")}
         />
         <Canvas
+          svgRef={svgRef}
           model={model}
           tool={tool}
           selectedId={selectedId}
+          selectedEdge={selectedEdge}
           acyclic={analysis.acyclic}
           zoom={zoom}
           onZoomIn={zoomIn}
           onZoomOut={zoomOut}
           onZoomReset={zoomReset}
-          onSelect={setSelectedId}
+          onSelect={selectNode}
+          onSelectEdge={selectEdge}
           onMoveNode={(id, x, y) => setModel((m) => moveNode(m, id, x, y))}
           onAddNodeAt={handleAddNodeAt}
-          onAddEdge={(from, to) => setModel((m) => addEdge(m, from, to))}
+          onAddEdge={handleAddEdge}
           onDeleteNode={handleDeleteNode}
+          onToggleRole={handleToggleRole}
+          onRename={handleRename}
+          onDeleteEdge={handleDeleteEdge}
+          onReverseEdge={handleReverseEdge}
+          onSetEdgeType={handleSetEdgeType}
+          onAutoLayout={handleAutoLayout}
+          onFit={zoomReset}
+          onOpenLoad={openLoad}
           onStartEmpty={startEmptyNode}
           onLoadExample={firstExampleOrStarter}
         />
@@ -314,6 +418,12 @@ export default function App() {
       </div>
 
       <Footer acyclic={analysis.acyclic} variables={analysis.variables.length} edges={analysis.edges} />
+
+      {toast && (
+        <div className="fixed left-1/2 bottom-6 z-[120] -translate-x-1/2 px-4 py-2.5 rounded-[10px] bg-panel border border-line shadow-panel text-[13px] font-medium text-text">
+          {toast}
+        </div>
+      )}
 
       {modal === "load" && (
         <Modal title="Load model" width={560} onClose={() => setModal(null)}>
@@ -380,7 +490,7 @@ export default function App() {
           <p className="text-[13px] text-faint leading-[1.6] mb-4">
             Analysis runs through the same engine as the{" "}
             <span className="font-mono text-text">dagittyplus</span> R package, so results agree by
-            construction. PNG export and shareable links are coming soon.
+            construction.
           </p>
           <div className="flex justify-end">
             <button
