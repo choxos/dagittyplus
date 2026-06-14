@@ -7,6 +7,7 @@ export interface Vertex {
   id: string;
   layout_pos_x?: number;
   layout_pos_y?: number;
+  getParents(): Vertex[];
 }
 
 export interface RawEdge {
@@ -27,6 +28,10 @@ export interface DagittyGraph {
   getLatentNodes(): Vertex[];
   getAdjustedNodes(): Vertex[];
   getSelectedNodes(): Vertex[];
+  getVertex(id: string): Vertex;
+  ancestorsOf(vs: Vertex[], setup?: () => void): Vertex[];
+  descendantsOf(vs: Vertex[]): Vertex[];
+  clearTraversalInfo(): void;
   toString(): string;
 }
 
@@ -43,7 +48,10 @@ export interface DagittyEngine {
   GraphAnalyzer: GraphAnalyzerApi;
   GraphTransformer: Record<string, (...args: unknown[]) => unknown>;
   GraphSerializer: Record<string, (...args: unknown[]) => unknown>;
-  Graph: { Edgetype: Record<string, unknown> };
+  Graph: {
+    Edgetype: Record<string, unknown>;
+    Vertex: { markAsVisited(v: Vertex): void };
+  };
 }
 
 declare global {
@@ -94,6 +102,12 @@ export interface Analysis {
   adjusted: string[];
   latent: string[];
   selected: string[];
+  /** Variables on a causal path from the (single) exposure to the outcome. */
+  mediators: string[];
+  /** Common causes of the (single) exposure and outcome. */
+  confounders: string[];
+  /** Variables with two or more incoming arrows (structural colliders). */
+  colliders: string[];
   totalEffect: AdjustmentResult | null;
   directEffect: AdjustmentResult | null;
   instruments: Instrument[];
@@ -111,6 +125,58 @@ function adjustment(sets: Vertex[][]): AdjustmentResult {
     return { status: "no-adjustment-needed", sets: [[]] };
   }
   return { status: "identifiable", sets: mapped };
+}
+
+interface Structure {
+  mediators: string[];
+  confounders: string[];
+  colliders: string[];
+}
+
+// Mediators, common causes (confounders), and structural colliders. Mediators
+// and confounders are defined relative to a single exposure and outcome; the
+// engine's ancestorsOf/descendantsOf include the queried node, so we drop the
+// exposure and outcome themselves.
+function computeStructure(
+  D: DagittyEngine,
+  g: DagittyGraph,
+  sources: string[],
+  targets: string[],
+  acyclic: boolean,
+): Structure {
+  const colliders = g
+    .getVertices()
+    .filter((v) => v.getParents().length >= 2)
+    .map((v) => v.id);
+
+  if (!acyclic || sources.length !== 1 || targets.length !== 1) {
+    return { mediators: [], confounders: [], colliders };
+  }
+  const x = sources[0];
+  const y = targets[0];
+  const drop = new Set([x, y]);
+  const xVertex = g.getVertex(x);
+  const descX = new Set(ids(g.descendantsOf([xVertex])));
+  const ancX = new Set(ids(g.ancestorsOf([xVertex])));
+  const ancY = new Set(ids(g.ancestorsOf([g.getVertex(y)])));
+  // Ancestors of the outcome reached WITHOUT passing through the exposure: a
+  // confounder must open a back-door path, not act only through X (which would
+  // make it an instrument, not a confounder).
+  const ancYavoidingX = new Set(
+    ids(
+      g.ancestorsOf([g.getVertex(y)], () => {
+        g.clearTraversalInfo();
+        D.Graph.Vertex.markAsVisited(xVertex);
+      }),
+    ),
+  );
+
+  const mediators = [...descX].filter((id) => ancY.has(id) && !drop.has(id)).sort();
+  const mediatorSet = new Set(mediators);
+  const confounders = [...ancX]
+    .filter((id) => ancYavoidingX.has(id) && !drop.has(id) && !mediatorSet.has(id))
+    .sort();
+  return { mediators, confounders, colliders };
 }
 
 /** Parse a dagitty model string and run the full causal analysis. */
@@ -148,6 +214,11 @@ export function analyze(code: string): Analysis {
   const selected = ids(g.getSelectedNodes());
   const acyclic = !D.GraphAnalyzer.containsCycle(g);
   const hasEffect = sources.length > 0 && targets.length > 0 && acyclic;
+  const structure = attempt("structure", () => computeStructure(D, g, sources, targets, acyclic), {
+    mediators: [],
+    confounders: [],
+    colliders: [],
+  });
 
   return {
     ok: true,
@@ -160,6 +231,9 @@ export function analyze(code: string): Analysis {
     adjusted,
     latent,
     selected,
+    mediators: structure.mediators,
+    confounders: structure.confounders,
+    colliders: structure.colliders,
     totalEffect: hasEffect
       ? attempt("total effect", () => adjustment(D.GraphAnalyzer.listMsasTotalEffect(g)), null)
       : null,
@@ -204,6 +278,9 @@ function emptyAnalysis(error?: string): Analysis {
     adjusted: [],
     latent: [],
     selected: [],
+    mediators: [],
+    confounders: [],
+    colliders: [],
     totalEffect: null,
     directEffect: null,
     instruments: [],
