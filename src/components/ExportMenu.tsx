@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 interface ExportMenuProps {
   onExportPNG: (transparent: boolean) => void;
@@ -11,30 +11,20 @@ interface ExportMenuProps {
  * and a transparent-background toggle. Styled like the Header dropdowns.
  */
 export default function ExportMenu({ onExportPNG, onExportSVG, onClose }: ExportMenuProps) {
-  const ref = useRef<HTMLDivElement>(null);
   const [transparent, setTransparent] = useState(false);
 
+  // Outside-click is handled by the Header wrapper (which includes the trigger
+  // button) so toggling the Export button works; here we only handle Escape.
   useEffect(() => {
-    const onDoc = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
-    };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
-    const id = window.setTimeout(() => document.addEventListener("mousedown", onDoc), 0);
     document.addEventListener("keydown", onKey);
-    return () => {
-      window.clearTimeout(id);
-      document.removeEventListener("mousedown", onDoc);
-      document.removeEventListener("keydown", onKey);
-    };
+    return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
   return (
-    <div
-      ref={ref}
-      className="absolute top-[46px] right-0 z-[60] w-[220px] bg-panel border border-line rounded-[13px] shadow-panel p-2"
-    >
+    <div className="absolute top-[46px] right-0 z-[60] w-[220px] bg-panel border border-line rounded-[13px] shadow-panel p-2">
       <div className="px-1.5 pt-0.5 pb-1.5 text-[11px] uppercase tracking-[0.6px] text-faint font-bold">
         Export diagram
       </div>

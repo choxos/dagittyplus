@@ -67,6 +67,11 @@ export default function App() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
+  // In-app rename dialog (replaces the browser prompt).
+  const [renameId, setRenameId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
+  const [renameError, setRenameError] = useState<string | null>(null);
+
   const svgRef = useRef<SVGSVGElement>(null);
   const examples = useMemo(() => loadExamples(), []);
 
@@ -145,21 +150,33 @@ export default function App() {
     setModel((m) => toggleRole(m, id, role));
   }, []);
 
-  const handleRename = useCallback(
-    (id: string) => {
-      const next = window.prompt("Rename variable", id);
-      if (next === null) return;
-      const name = next.trim();
-      if (!name) return;
-      if (model.nodes.some((n) => n.id === name && n.id !== id)) {
-        window.alert(`A variable named "${name}" already exists.`);
-        return;
-      }
-      setModel((m) => renameNode(m, id, name));
-      setSelectedId((cur) => (cur === id ? name : cur));
-    },
-    [model],
-  );
+  // Opening the rename dialog needs only the id; validation happens on commit.
+  const handleRename = useCallback((id: string) => {
+    setRenameId(id);
+    setRenameDraft(id);
+    setRenameError(null);
+  }, []);
+
+  const commitRename = useCallback(() => {
+    if (renameId === null) return;
+    const name = renameDraft.trim();
+    if (!name) {
+      setRenameError("Enter a variable name.");
+      return;
+    }
+    if (name !== renameId && model.nodes.some((n) => n.id === name)) {
+      setRenameError(`A variable named "${name}" already exists.`);
+      return;
+    }
+    const id = renameId;
+    setModel((m) => renameNode(m, id, name));
+    setSelectedId((cur) => (cur === id ? name : cur));
+    setSelectedEdge((cur) =>
+      cur ? { from: cur.from === id ? name : cur.from, to: cur.to === id ? name : cur.to } : cur,
+    );
+    setRenameId(null);
+    setRenameError(null);
+  }, [renameId, renameDraft, model]);
 
   const handleAddEdge = useCallback((from: string, to: string) => {
     setModel((m) => addEdge(m, from, to));
@@ -498,6 +515,56 @@ export default function App() {
               className="h-[38px] px-[22px] rounded-[9px] border-none bg-accent text-white text-[13px] font-semibold cursor-pointer hover:brightness-110 transition"
             >
               Close
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {renameId !== null && (
+        <Modal title="Rename variable" width={380} onClose={() => setRenameId(null)}>
+          <label className="block text-[12px] text-dim mb-1.5">Variable name</label>
+          <input
+            autoFocus
+            value={renameDraft}
+            onChange={(e) => {
+              setRenameDraft(e.target.value);
+              setRenameError(null);
+            }}
+            onFocus={(e) => e.target.select()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                commitRename();
+              }
+            }}
+            spellCheck={false}
+            placeholder="e.g. Smoking"
+            className="w-full h-[40px] px-3 rounded-[10px] border border-line bg-bg text-text text-[13.5px] outline-none focus:border-accent transition-colors"
+          />
+          {renameError && (
+            <div
+              className="mt-2 px-3 py-2.5 rounded-[9px] text-[12px]"
+              style={{
+                background: "color-mix(in srgb, var(--danger) 12%, transparent)",
+                border: "1px solid color-mix(in srgb, var(--danger) 30%, transparent)",
+                color: "var(--danger)",
+              }}
+            >
+              {renameError}
+            </div>
+          )}
+          <div className="flex justify-end gap-2 mt-4">
+            <button
+              onClick={() => setRenameId(null)}
+              className="h-[38px] px-4 rounded-[9px] border border-line bg-panel text-text text-[13px] font-medium cursor-pointer hover:border-accent transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={commitRename}
+              className="h-[38px] px-[18px] rounded-[9px] border-none bg-accent text-white text-[13px] font-semibold cursor-pointer hover:brightness-110 transition"
+            >
+              Rename
             </button>
           </div>
         </Modal>

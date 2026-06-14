@@ -124,6 +124,21 @@ export default function Header({
   onAbout,
 }: HeaderProps) {
   const [exportOpen, setExportOpen] = useState(false);
+  const exportRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!exportOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      if (exportRef.current && !exportRef.current.contains(e.target as Node)) setExportOpen(false);
+    };
+    // Defer so the click that opened the menu (e.g. the Model menu item) does
+    // not immediately close it.
+    const id = window.setTimeout(() => document.addEventListener("mousedown", onDoc), 0);
+    return () => {
+      window.clearTimeout(id);
+      document.removeEventListener("mousedown", onDoc);
+    };
+  }, [exportOpen]);
 
   const modelItems: MenuItem[] = [
     { label: "New model", sub: "start from an empty canvas", onClick: onNew },
@@ -169,7 +184,7 @@ export default function Header({
         {theme === "dark" ? <MoonIcon /> : <SunIcon />}
       </button>
 
-      <div className="relative">
+      <div className="relative" ref={exportRef}>
         <button
           onClick={() => setExportOpen((o) => !o)}
           aria-expanded={exportOpen}
