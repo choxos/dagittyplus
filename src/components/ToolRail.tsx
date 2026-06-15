@@ -38,7 +38,7 @@ export default function ToolRail({
     { id: "edge", title: "Add connection (C)", icon: <AddEdgeIcon /> },
     { id: "delete", title: "Delete (X)", icon: <DeleteToolIcon /> },
     { id: "layout", title: "Auto-layout", icon: <LayoutIcon />, action: true },
-    { id: "fit", title: "Fit / reset zoom", icon: <FitIcon />, action: true },
+    { id: "fit", title: "Reset font size", icon: <FitIcon />, action: true },
   ];
 
   const handle = (t: ToolDef) => {

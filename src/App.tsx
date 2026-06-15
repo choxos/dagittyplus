@@ -60,7 +60,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>("inspect");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<SelectedEdge | null>(null);
-  const [zoom, setZoom] = useState(1);
+  const [fontSize, setFontSize] = useState(BASE_FONT_PX);
   const [estimand, setEstimand] = useState<Estimand>("total");
 
   // The analysis panel is a static column on desktop and a slide-over drawer
@@ -308,11 +308,11 @@ export default function App() {
         setToast("Nothing to export yet.");
         return;
       }
-      exportPNG(svg, `${fileBase()}_DAG.png`, { ...options, scale: zoom }).catch(() => {
+      exportPNG(svg, `${fileBase()}_DAG.png`, options).catch(() => {
         setToast("Could not export the PNG. Try the SVG option instead.");
       });
     },
-    [fileBase, zoom],
+    [fileBase],
   );
 
   const doExportSVG = useCallback(
@@ -322,9 +322,9 @@ export default function App() {
         setToast("Nothing to export yet.");
         return;
       }
-      exportSVG(svg, `${fileBase()}_DAG.svg`, { ...options, scale: zoom });
+      exportSVG(svg, `${fileBase()}_DAG.svg`, options);
     },
-    [fileBase, zoom],
+    [fileBase],
   );
 
   // Hand the current model to the embedding Shiny app, which fills its Analyze
@@ -334,21 +334,21 @@ export default function App() {
     setToast("Sent to the Analyze tab.");
   }, [code]);
 
-  /* -------------------------------------------------------------- zoom etc */
+  /* ---------------------------------------------------------- font size etc */
 
-  // The size control steps in whole-pixel font sizes; the scale factor is just
-  // fontSize / BASE_FONT_PX, kept in [FONT_MIN, FONT_MAX] px.
-  const FONT_MIN = 9;
-  const FONT_MAX = 30;
-  const zoomIn = useCallback(
-    () => setZoom((z) => Math.min(FONT_MAX, Math.round(BASE_FONT_PX * z) + 1) / BASE_FONT_PX),
+  // The control sets the node-label font size in pixels (1 to 100). It scales the
+  // node and label sizes only; node positions stay put, so smaller fonts still
+  // use the whole canvas instead of shrinking the layout.
+  const FONT_MIN = 1;
+  const FONT_MAX = 100;
+  const setFont = useCallback(
+    (px: number) =>
+      setFontSize(() => (Number.isFinite(px) ? Math.max(FONT_MIN, Math.min(FONT_MAX, Math.round(px))) : BASE_FONT_PX)),
     [],
   );
-  const zoomOut = useCallback(
-    () => setZoom((z) => Math.max(FONT_MIN, Math.round(BASE_FONT_PX * z) - 1) / BASE_FONT_PX),
-    [],
-  );
-  const zoomReset = useCallback(() => setZoom(1), []);
+  const fontInc = useCallback(() => setFontSize((f) => Math.min(FONT_MAX, f + 1)), []);
+  const fontDec = useCallback(() => setFontSize((f) => Math.max(FONT_MIN, f - 1)), []);
+  const fontReset = useCallback(() => setFontSize(BASE_FONT_PX), []);
 
   const startEmptyNode = useCallback(() => {
     setTool("node");
@@ -445,7 +445,7 @@ export default function App() {
           tool={tool}
           onSelectTool={setTool}
           onAutoLayout={handleAutoLayout}
-          onFit={zoomReset}
+          onFit={fontReset}
           onHelp={() => setModal("about")}
         />
         <Canvas
@@ -455,10 +455,11 @@ export default function App() {
           selectedId={selectedId}
           selectedEdge={selectedEdge}
           acyclic={analysis.acyclic}
-          zoom={zoom}
-          onZoomIn={zoomIn}
-          onZoomOut={zoomOut}
-          onZoomReset={zoomReset}
+          fontSize={fontSize}
+          onFontInc={fontInc}
+          onFontDec={fontDec}
+          onFontReset={fontReset}
+          onFontSet={setFont}
           onSelect={selectNode}
           onSelectEdge={selectEdge}
           onMoveNode={(id, x, y) => setModel((m) => moveNode(m, id, x, y))}
@@ -471,7 +472,7 @@ export default function App() {
           onReverseEdge={handleReverseEdge}
           onSetEdgeType={handleSetEdgeType}
           onAutoLayout={handleAutoLayout}
-          onFit={zoomReset}
+          onFit={fontReset}
           onOpenLoad={openLoad}
           onStartEmpty={startEmptyNode}
           onLoadExample={firstExampleOrStarter}
