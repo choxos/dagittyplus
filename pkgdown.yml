@@ -4,7 +4,7 @@ pkgdown_sha: ~
 articles:
   dagitty4semusers: dagitty4semusers.html
   ggdag-interop: ggdag-interop.html
-last_built: 2026-06-14T21:37Z
+last_built: 2026-06-15T00:42Z
 urls:
   reference: https://choxos.github.io/dagittyplus/reference
   article: https://choxos.github.io/dagittyplus/articles
