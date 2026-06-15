@@ -106,7 +106,10 @@ export interface Analysis {
   mediators: string[];
   /** Common causes of the (single) exposure and outcome. */
   confounders: string[];
-  /** Variables with two or more incoming arrows (structural colliders). */
+  /**
+   * Variables with two or more incoming arrows (structural colliders),
+   * excluding the exposure and outcome themselves.
+   */
   colliders: string[];
   totalEffect: AdjustmentResult | null;
   directEffect: AdjustmentResult | null;
@@ -144,9 +147,13 @@ function computeStructure(
   targets: string[],
   acyclic: boolean,
 ): Structure {
+  // A collider is a variable with two or more incoming arrows. The exposure and
+  // outcome are the analysis variables, not adjustment candidates, so we exclude
+  // them even when they structurally have multiple parents.
+  const roleNodes = new Set([...sources, ...targets]);
   const colliders = g
     .getVertices()
-    .filter((v) => v.getParents().length >= 2)
+    .filter((v) => v.getParents().length >= 2 && !roleNodes.has(v.id))
     .map((v) => v.id);
 
   if (!acyclic || sources.length !== 1 || targets.length !== 1) {

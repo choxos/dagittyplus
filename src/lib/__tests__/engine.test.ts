@@ -92,7 +92,11 @@ describe("structure (mediators, confounders, colliders)", () => {
     const a = analyze("dag { x [exposure] y [outcome] z->x z->y x->m m->y x->y x->c y->c }");
     expect(a.mediators).toEqual(["m"]);
     expect(a.confounders).toEqual(["z"]);
-    expect(a.colliders.slice().sort()).toEqual(["c", "y"]);
+    // c has parents x and y; y has parents z, m, x but is the outcome, so it is
+    // excluded from the colliders list.
+    expect(a.colliders.slice().sort()).toEqual(["c"]);
+    expect(a.colliders).not.toContain("y");
+    expect(a.colliders).not.toContain("x");
   });
 
   it("excludes instruments from confounders", () => {
