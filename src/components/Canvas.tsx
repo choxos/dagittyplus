@@ -29,10 +29,11 @@ interface CanvasProps {
   selectedId: string | null;
   selectedEdge: SelectedEdge | null;
   acyclic: boolean;
-  zoom: number;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
-  onZoomReset: () => void;
+  fontSize: number;
+  onFontInc: () => void;
+  onFontDec: () => void;
+  onFontReset: () => void;
+  onFontSet: (px: number) => void;
   onSelect: (id: string | null) => void;
   onSelectEdge: (edge: SelectedEdge | null) => void;
   onMoveNode: (id: string, x: number, y: number) => void;
@@ -115,7 +116,7 @@ interface EdgeGeom {
   cy2: number;
 }
 
-function edgeGeom(model: DagModel, e: DagEdge): EdgeGeom | null {
+function edgeGeom(model: DagModel, e: DagEdge, fontScale: number): EdgeGeom | null {
   const s = model.nodes.find((n) => n.id === e.from);
   const t = model.nodes.find((n) => n.id === e.to);
   if (!s || !t) return null;
@@ -126,25 +127,29 @@ function edgeGeom(model: DagModel, e: DagEdge): EdgeGeom | null {
   const uy = dy / L;
   const px = -uy;
   const py = ux;
-  const sBound = boundaryDist(nodeHalfWidth(s), nodeRadius(s), ux, uy);
-  const tBound = boundaryDist(nodeHalfWidth(t), nodeRadius(t), ux, uy);
-  const sr = sBound + 3;
-  const tr = tBound + 11;
+  // Node visuals scale with the font, so the boundary, gaps, and arrowheads
+  // scale too; only the node positions stay fixed.
+  const fs = fontScale;
+  const sBound = boundaryDist(nodeHalfWidth(s) * fs, nodeRadius(s) * fs, ux, uy);
+  const tBound = boundaryDist(nodeHalfWidth(t) * fs, nodeRadius(t) * fs, ux, uy);
+  const sr = sBound + 3 * fs;
+  const tr = tBound + 11 * fs;
   const x1 = s.x + ux * sr;
   const y1 = s.y + uy * sr;
   const x2 = t.x - ux * tr;
   const y2 = t.y - uy * tr;
-  const tipx = t.x - ux * (tBound + 3);
-  const tipy = t.y - uy * (tBound + 3);
-  const bx = tipx - ux * 12;
-  const by = tipy - uy * 12;
-  const arrow = `${tipx.toFixed(1)},${tipy.toFixed(1)} ${(bx + px * 6).toFixed(1)},${(by + py * 6).toFixed(1)} ${(bx - px * 6).toFixed(1)},${(by - py * 6).toFixed(1)}`;
+  const tipx = t.x - ux * (tBound + 3 * fs);
+  const tipy = t.y - uy * (tBound + 3 * fs);
+  const bx = tipx - ux * 12 * fs;
+  const by = tipy - uy * 12 * fs;
+  const ah = 6 * fs;
+  const arrow = `${tipx.toFixed(1)},${tipy.toFixed(1)} ${(bx + px * ah).toFixed(1)},${(by + py * ah).toFixed(1)} ${(bx - px * ah).toFixed(1)},${(by - py * ah).toFixed(1)}`;
   // Second arrowhead at the source for bidirected edges.
-  const stipx = s.x + ux * (sBound + 3);
-  const stipy = s.y + uy * (sBound + 3);
-  const sbx = stipx + ux * 12;
-  const sby = stipy + uy * 12;
-  const backArrow = `${stipx.toFixed(1)},${stipy.toFixed(1)} ${(sbx + px * 6).toFixed(1)},${(sby + py * 6).toFixed(1)} ${(sbx - px * 6).toFixed(1)},${(sby - py * 6).toFixed(1)}`;
+  const stipx = s.x + ux * (sBound + 3 * fs);
+  const stipy = s.y + uy * (sBound + 3 * fs);
+  const sbx = stipx + ux * 12 * fs;
+  const sby = stipy + uy * 12 * fs;
+  const backArrow = `${stipx.toFixed(1)},${stipy.toFixed(1)} ${(sbx + px * ah).toFixed(1)},${(sby + py * ah).toFixed(1)} ${(sbx - px * ah).toFixed(1)},${(sby - py * ah).toFixed(1)}`;
   return {
     key: `${e.from}->${e.to}:${e.type}`,
     x1,
@@ -186,10 +191,11 @@ export default function Canvas(props: CanvasProps) {
     selectedId,
     selectedEdge,
     acyclic,
-    zoom,
-    onZoomIn,
-    onZoomOut,
-    onZoomReset,
+    fontSize,
+    onFontInc,
+    onFontDec,
+    onFontReset,
+    onFontSet,
     onSelect,
     onSelectEdge,
     onMoveNode,
@@ -207,6 +213,10 @@ export default function Canvas(props: CanvasProps) {
     onStartEmpty,
     onLoadExample,
   } = props;
+
+  // Node visuals (radius, label, caption) scale by this; positions do not, so a
+  // smaller font keeps the layout spread across the whole canvas.
+  const fontScale = fontSize / BASE_FONT_PX;
 
   const dragRef = useRef<{ id: string; dx: number; dy: number; moved: boolean } | null>(null);
   const [pendingEdge, setPendingEdge] = useState<string | null>(null);
@@ -267,39 +277,32 @@ export default function Canvas(props: CanvasProps) {
     };
   }, [svgRef, view]);
 
-  /** Convert a client point to viewBox coords, undoing meet-fit and zoom. */
+  /** Convert a client point to viewBox coords, undoing the meet-fit. */
   const toViewBox = useCallback(
     (clientX: number, clientY: number): { x: number; y: number } => {
       const { rect, scale, offX, offY } = frame();
       if (!rect) return { x: 0, y: 0 };
-      let vx = (clientX - rect.left - offX) / scale;
-      let vy = (clientY - rect.top - offY) / scale;
-      const cx = view.width / 2;
-      const cy = view.height / 2;
-      vx = cx + (vx - cx) / zoom;
-      vy = cy + (vy - cy) / zoom;
-      return { x: vx, y: vy };
+      return {
+        x: (clientX - rect.left - offX) / scale,
+        y: (clientY - rect.top - offY) / scale,
+      };
     },
-    [frame, zoom, view],
+    [frame],
   );
 
   /** Inverse of toViewBox: viewBox coords -> pixels relative to the SVG box top-left. */
   const toScreen = useCallback(
     (vx: number, vy: number): { x: number; y: number } => {
       const { scale, offX, offY } = frame();
-      const cx = view.width / 2;
-      const cy = view.height / 2;
-      const zx = cx + (vx - cx) * zoom;
-      const zy = cy + (vy - cy) * zoom;
-      return { x: offX + zx * scale, y: offY + zy * scale };
+      return { x: offX + vx * scale, y: offY + vy * scale };
     },
-    [frame, zoom, view],
+    [frame],
   );
 
   /** Screen-space radius of a node (for clearing the toolbar above it). */
   const screenRadius = useCallback(
-    (n: DagNode) => nodeRadius(n) * frame().scale * zoom,
-    [frame, zoom],
+    (n: DagNode) => nodeRadius(n) * frame().scale * fontScale,
+    [frame, fontScale],
   );
 
   // Reposition overlays and dismiss the context menu on scroll/resize.
@@ -550,7 +553,7 @@ export default function Canvas(props: CanvasProps) {
 
   let edgeMid: { x: number; y: number } | null = null;
   if (selectedEdgeObj && tool === "select" && !menu) {
-    const g = edgeGeom(model, selectedEdgeObj);
+    const g = edgeGeom(model, selectedEdgeObj, fontScale);
     if (g) edgeMid = toScreen((g.cx1 + g.cx2) / 2, (g.cy1 + g.cy2) / 2);
   }
 
@@ -622,10 +625,10 @@ export default function Canvas(props: CanvasProps) {
           strokeWidth={1.5}
           pointerEvents="none"
         />
-        <g style={{ transform: `scale(${zoom})`, transformOrigin: `${view.width / 2}px ${view.height / 2}px` }}>
+        <g>
           {/* edges */}
           {model.edges.map((e) => {
-            const g = edgeGeom(model, e);
+            const g = edgeGeom(model, e, fontScale);
             if (!g) return null;
             const isSel =
               selectedEdge && selectedEdge.from === e.from && selectedEdge.to === e.to;
@@ -730,6 +733,7 @@ export default function Canvas(props: CanvasProps) {
                 onPointerDown={(e) => onNodeDown(e, n)}
                 onContextMenu={(e) => openMenu(e, { kind: "node", id: n.id })}
                 style={{ cursor: tool === "select" ? "grab" : cursorStyle }}
+                transform={`translate(${n.x} ${n.y}) scale(${fontScale}) translate(${-n.x} ${-n.y})`}
               >
                 {(selected || isPending) && (
                   <rect
@@ -908,32 +912,44 @@ export default function Canvas(props: CanvasProps) {
         </div>
       )}
 
-      {/* font-size control (also sets the exported file size) */}
+      {/* font-size control: type a value or use +/-; also sets the export size */}
       <div
         className="absolute right-4 bottom-4 z-[5] flex flex-col bg-panel border border-line rounded-[12px] shadow-panel overflow-hidden"
-        title="Label font size — also sets the exported image size"
+        title="Label font size in px (1 to 100) — also sets the exported image size"
       >
         <button
-          onClick={onZoomIn}
+          onClick={onFontInc}
           aria-label="Increase font size"
-          className="w-[38px] h-[38px] border-none bg-transparent text-text text-[18px] cursor-pointer border-b border-line hover:bg-bg transition-colors"
+          className="w-[46px] h-[36px] border-none bg-transparent text-text text-[18px] cursor-pointer border-b border-line hover:bg-bg transition-colors"
         >
           +
         </button>
         <button
-          onClick={onZoomOut}
+          onClick={onFontDec}
           aria-label="Decrease font size"
-          className="w-[38px] h-[38px] border-none bg-transparent text-text text-[18px] cursor-pointer border-b border-line hover:bg-bg transition-colors"
+          className="w-[46px] h-[36px] border-none bg-transparent text-text text-[18px] cursor-pointer border-b border-line hover:bg-bg transition-colors"
         >
           −
         </button>
-        <button
-          onClick={onZoomReset}
-          aria-label="Reset font size"
-          className="w-[38px] h-[38px] border-none bg-transparent text-dim text-[10px] font-semibold cursor-pointer hover:bg-bg transition-colors"
-        >
-          {Math.round(BASE_FONT_PX * zoom)}px
-        </button>
+        <div className="flex items-center justify-center w-[46px] h-[34px] gap-px">
+          <input
+            type="number"
+            min={1}
+            max={100}
+            value={fontSize}
+            onChange={(e) => {
+              const v = parseInt(e.target.value, 10);
+              if (!Number.isNaN(v)) onFontSet(v);
+            }}
+            onBlur={(e) => {
+              if (e.target.value === "") onFontReset();
+            }}
+            aria-label="Font size in pixels"
+            title="Double-click the rail's fit icon, or set a value here"
+            className="w-[24px] bg-transparent text-dim text-[11px] font-semibold text-right outline-none border-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          />
+          <span className="text-faint text-[9px] font-semibold select-none">px</span>
+        </div>
       </div>
     </main>
   );
